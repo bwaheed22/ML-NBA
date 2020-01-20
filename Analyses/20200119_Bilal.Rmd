@@ -1,0 +1,136 @@
+---
+title: "Project 2"
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+```
+
+# Cluster Analysis with NBA Player Data from 2016-2017 season
+
+```{r}
+## Import libraries
+# library(dplyr)
+# library(ggplot2)
+library(tidyverse)
+library(GGally)
+
+## Load dataset:
+seasonstats <- read.csv("Inputs/Seasons_Stats.csv")
+
+## Data Cleaning:
+# Filter for year 2017 which corresponds to 2016-2017 season and select appropriate features
+# that measure a player's performance and have a direct impact on games.
+
+season_17 <- seasonstats %>% 
+  filter(Year == "2017") %>% 
+  select("Player","Age","Pos","Tm","G","MP","FG","FGA", "TRB","AST","STL","BLK", "FT","FTA", "X3P", "X3PA","X2P", "X2PA", "PTS", "VORP", "PER") %>%
+  mutate(MPG = MP/G, FGPG = FG/G, FGAPG = FGA/G, RPG = TRB/G,
+         APG = AST/G, SPG = STL/G, BPG = BLK/G, FTPG=FT/G,
+         FTAPG = FTA/G, X3PPG = X3P/G, X3PAPG = X3PA/G,
+         X2PPG = X2P/G, X2PAPG = X2PA/G, PPG = PTS/G) %>% 
+  distinct(Player, .keep_all = TRUE) %>% 
+  filter(MPG >= 28.5)
+
+season_17 <- season_17[,-(6:19)]
+```
+
+
+```{r}
+## Exploratory Data Analysis (EDA):
+
+# Plot densities of each feature variable:
+par(mfrow=c(4,4))
+
+for (i in 6:19) {
+  plot(density(season_17[, i]),
+    main = paste(colnames(season_17[i]), "Density"),
+    xlab = paste(colnames(season_17[i]), "Value"))
+}
+dev.off()
+
+# densities and correlations
+ggpairs(season_17, columns = 6:19, aes(alpha = 0.2))
+
+```
+
+```{r}
+# Compute variance of each feature:
+var_ftrs <- round(apply(season_17[,6:21], 2, FUN = var),2)
+print(var_ftrs)
+
+# Standardize feature set:
+season_17.stdz <- scale(season_17[,6:21])
+```
+
+```{r}
+## Principal Components Analysis
+pc.season_17 <- princomp(season_17.stdz, cor = T)
+summary(pc.season_17)
+
+pc.season_17.scores <- as_tibble(pc.season_17$scores)
+pc.season_17.scores <-
+  pc.season_17.scores %>% mutate(
+    player = season_17 %>% pull(Player),
+    team = season_17 %>% pull(Tm),
+    position = season_17 %>% pull(Pos)
+  )
+
+ggplot(pc.season_17.scores, aes(x = Comp.1, y = Comp.2, col = position)) + 
+  geom_point()
+  # geom_text(aes(label=player),hjust=0, vjust=0, cex = 0.4)
+
+```
+
+```{r}
+# Hierarchical Clustering
+hclust_season17 <- hclust(dist(season_17.stdz, method = "euclidean"), method = "ward.D2")
+plot(hclust_season17, labels = F)
+
+# Compute optimal clusters:
+hclust_season17_opt <- NbClust::NbClust(season_17.stdz, method = 'ward.D2', index = 'ch')
+print(hclust_season17_opt$Best.nc)
+
+# Selection cluster solution of k = 4:
+hclust_opt <- cutree(hclust_season17, k = 4)
+
+# Plot solution in PCA space, with point size referring to PER (player efficiency ratings):
+ggplot(pc.season_17.scores,
+       aes(x = Comp.1, y = Comp.2)) +
+  geom_point(aes(col = hclust_opt),
+             size = season_17$PER,
+             alpha = 0.7) +
+  geom_text(aes(label = player),
+            hjust = 0,
+            vjust = 0,
+            size = 3)
+
+#K-means clustering
+kmeans_season17_opt <- NbClust::NbClust(season_17.stdz, method = 'kmeans', index = 'ch')
+print(kmeans_season17_opt$Best.nc)
+
+kmeans_season17_4 <- kmeans(season_17.stdz, centers = 4, nstart = 100)
+
+pc.season_17.scores %>% 
+  cbind(cluster = kmeans_season17_4$cluster) %>% 
+  mutate(cluster = as.factor(cluster),
+         player = sub("^\\S+\\s+", '', player)) %>% # change name to last name only
+  ggplot(aes(x = Comp.1, y = Comp.2,
+             size = season_17$FGPG / season_17$FGAPG)) +
+  # geom_point(aes(col = cluster)) +
+  geom_text(aes(label = player,
+                col = cluster),
+            hjust = 0,
+            vjust = 0,
+            size = 3)
+
+
+```
+
+
+
+
