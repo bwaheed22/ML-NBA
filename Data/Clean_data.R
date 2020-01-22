@@ -10,7 +10,6 @@ library(tibble)
 # teams mid-season. It combines the two files and then writes to a new csv
 # in the "Data" folder. 
 
-
 # define file name for analysis
 filename <- 'Inputs/Seasons_Stats.csv'
 filename_team <- 'Inputs/nba_team_salaries_win_pct_2016_2017.csv'
@@ -161,9 +160,11 @@ nba_df <- left_join(nba_df, team_data, by = c('Tm' = 'team'))
 
 # Write to CSV ------------------------------------------------------------
 
-# write to csv if file doesn't already exist
+
+# overwrite file contents
 csv_name <- 'season_stats_clean.csv'
-if (!(csv_name %in% list.files('Data'))){
+# write to csv if file doesn't already exist
+#if (!(csv_name %in% list.files('Data'))){
   write.csv(nba_df, paste0('Data/', csv_name), row.names = FALSE)
-}
+#}
 
