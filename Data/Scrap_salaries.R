@@ -127,7 +127,7 @@ View(unmatched)
 # 8 3
 # 9:12 2
 # 13:16 2
-# 17 # unsure, who is Gary Neal???????
+# 17 # unsure, who is Gary Neal? See manual fix below
 # 18:27 2
 
 # create a new column Matched.name and fill it with the corrected name
@@ -144,6 +144,9 @@ stats.df$New.name <- all.matches$New.name
 stats.df$Salary <-  salary.df$Salary[match(stats.df$New.name, salary.df$Player)]
 stats.df <- select(stats.df, -New.name)
 
+# Add in Gary Neal's salary manually https://hoopshype.com/player/gary-neal/salary/
+stats.df$Salary[stats.df$Player == "Gary Neal"] <- 72193
+
 # visually check if the top salaries seem correct
 stats.df %>% 
   select(Player, Salary) %>% 
@@ -151,8 +154,6 @@ stats.df %>%
 
 # write the final data.frame to csv
 write.csv(stats.df, 'Data/season_stats_clean.csv', row.names = FALSE)
-
-
 
 
 
