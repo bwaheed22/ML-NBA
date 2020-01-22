@@ -78,19 +78,19 @@ dim(RPM.df)[1] == length(unique(RPM.df$Player))
 stats.df <- read_csv('Data/season_stats_clean.csv')
 
 # how many players are an exact match in the salary data? 
-table(stats.df$Player %in% salary.df$Player)
+table(stats.df$Player %in% RPM.df$Player)
 
 # which players are not in the salary data
-stats.df[!(stats.df$Player %in% salary.df$Player),] %>% View()
+stats.df[!(stats.df$Player %in% RPM.df$Player),] %>% View()
 
 # other data inspections
 unique(stats.df$Tm)
 length(unique(stats.df$Player))
-length(unique(salary.df$Player))
-table(salary.df$Player %in% stats.df$Player)
-unique(stats.df$Pos) %in% unique(salary.df$Pos)
-unique(salary.df$Pos) %in% unique(stats.df$Pos) 
-length(unique(salary.df$Team))
+length(unique(RPM.df$Player))
+table(RPM.df$Player %in% stats.df$Player)
+unique(stats.df$Pos) %in% unique(RPM.df$Pos)
+unique(RPM.df$Pos) %in% unique(stats.df$Pos) 
+length(unique(RPM.df$Team))
 length(unique(stats.df$Tm))
 
 get_top_matches <- function(current.name, names.to.match, n = 5){
@@ -102,11 +102,11 @@ get_top_matches <- function(current.name, names.to.match, n = 5){
 }
 
 # test the function
-get_top_matches(stats.df$Player[1], salary.df$Player)
+get_top_matches(stats.df$Player[1], RPM.df$Player)
 
 # apply the function across the entire list to generate a data.frame
 #  containing the current.name and it's top 5 best matches
-all.matches <- lapply(stats.df$Player, get_top_matches, names.to.match = salary.df$Player) %>% 
+all.matches <- lapply(stats.df$Player, get_top_matches, names.to.match = RPM.df$Player) %>% 
   unlist() %>% 
   matrix(ncol = 5, byrow = TRUE) %>% 
   as_tibble() %>% 
@@ -121,17 +121,37 @@ unmatched <- all.matches[all.matches$Current.name != all.matches$Match.1,]
 View(unmatched)
 
 # this are the indices of the ones to adjust
-# 1:7 2
-# 8 3
-# 9:12 2
-# 13:16 2
-# 17 # unsure, who is Gary Neal? See manual fix below
-# 18:27 2
+# 1:5 2
+# 6 ?
+# 7:8 2
+# 9:10 ?
+# 11:13 2
+# 14 ?
+# 15 3
+# 16:21 2
+# 22 ?
+# 23:24 2
+# 25 ?
+# 26 ?
+# 27 2
+# 28 ?
+# 29 2
+# 30 ?
+# 31:33 2
+# 34 ?
+# 35 2
+# 36:39 ?
+# 40:41 2
+# 42 ?
+# 43 2
+
+c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43)
 
 # create a new column Matched.name and fill it with the corrected name
 unmatched$Matched.name <- NA
-unmatched[c(1:7, 9:12, 13:16, 18:27), "Matched.name"] <- unmatched[c(1:7, 9:12, 13:16, 18:27), "Match.1"]
-unmatched[8, "Matched.name"] <- unmatched[8, "Match.2"] 
+unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
+          "Matched.name"] <- unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
+                                       "Match.1"]
 
 # create a new column New.name containing all the matched names
 all.matches$New.name <- all.matches$Current.name
@@ -139,16 +159,13 @@ all.matches$New.name[all.matches$Index %in% unmatched$Index] <- unmatched$Matche
 
 # add the salary to the original stats.df dataframe
 stats.df$New.name <- all.matches$New.name
-stats.df$Salary <-  salary.df$Salary[match(stats.df$New.name, salary.df$Player)]
+stats.df$RPM <-  RPM.df$RPM[match(stats.df$New.name, salary.df$Player)]
 stats.df <- select(stats.df, -New.name)
-
-# Add in Gary Neal's salary manually https://hoopshype.com/player/gary-neal/salary/
-stats.df$Salary[stats.df$Player == "Gary Neal"] <- 72193
 
 # visually check if the top salaries seem correct
 stats.df %>% 
-  select(Player, Salary) %>% 
-  arrange(desc(Salary))
+  select(Player, RPM) %>% 
+  arrange(desc(RPM))
 
 # write the final data.frame to csv
 write.csv(stats.df, 'Data/season_stats_clean.csv', row.names = FALSE)
