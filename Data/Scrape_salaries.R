@@ -96,8 +96,8 @@ length(unique(salary.df$Team))
 length(unique(stats.df$Tm))
 
 get_top_matches <- function(current.name, names.to.match, n = 5){
-  # function returns that top n matches of the old.name
-  #   within the new.names list via fuzzy string matching
+  # function returns that top n matches of the current.name
+  #   within the names.to.match list via fuzzy string matching
   
   scores <- stringsim(current.name, names.to.match, method = "osa")
   names.to.match[rev(order(scores))][1:n]
