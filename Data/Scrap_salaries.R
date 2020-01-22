@@ -29,9 +29,10 @@ for (i in 1:page.count){
   response <- read_html(url)
   
   # scrape the odd rows then the even rows from the webpage's table
+  # performing it rowwise because the columns do not have class names that
+  #   we can reference
   odds <- html_nodes(x = response,
                      xpath = '//tr[contains(@class, "oddrow")]')
-  
   evens <- html_nodes(x = response,
                       xpath = '//tr[contains(@class, "evenrow")]')
   
@@ -41,7 +42,6 @@ for (i in 1:page.count){
     html_text() %>% 
     matrix(ncol = 4, byrow = TRUE) %>% 
     as_tibble()
-  
   evens <- evens %>% 
     html_children() %>% 
     html_text() %>% 
@@ -50,24 +50,48 @@ for (i in 1:page.count){
   
   # combine those two tables into one and store in the list
   tables[[i]] <- bind_rows(odds, evens)
-  
 }
 
 # create final dataframe of salaries by combining each pages' results
 salary.df <- tables %>% 
   bind_rows() %>% 
-  setNames(c("Rank", "Name", "Team", "Salary")) %>% 
+  setNames(c("Rank", "Player", "Team", "Salary")) %>% 
   mutate(Rank = as.numeric(Rank),
          Salary = substr(Salary,
                          start = 2,
                          stop = length(Salary)) %>% 
            str_remove_all(., ",") %>% 
            as.numeric()) %>% 
+  separate(col = Player, into = c("Player", "Pos"),
+           sep = ", ") %>% 
   arrange(Rank)
 
+# inspect the data
+head(salary.df)
 
+# check for duplicates
+table(duplicated(salary.df))
+dim(salary.df)[1] == length(unique(salary.df$Player))
 
 # Match the names to the stats dataframe ----------------------------------
+
+# core problem is that we need to join the salary data with the stats data
+#   but the names do not match so we need to fuzzy match
+
+# read in the stats data
+stats.df <- read_csv('Data/season_stats_clean.csv')
+
+# remove extraneous columns
+stats.df <- stats.df[, c("Player", "Tm", "Pos")]
+names(stats.df)[2] <- "Team"
+
+unique(stats.df$Team)
+table(salary.df$Player %in% stats.df$Player)
+unique(stats.df$Pos) %in% unique(salary.df$Pos)
+unique(salary.df$Pos) %in% unique(stats.df$Pos) 
+
+length(unique(salary.df$Team))
+length(unique(stats.df$Team))
 
 
 
