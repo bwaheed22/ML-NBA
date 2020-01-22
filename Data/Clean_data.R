@@ -32,7 +32,8 @@ colnames(nba_raw) <- gsub(char, '', colnames(nba_raw))
 year <- nba_raw$Year[which.max(nba_raw$Year)]
 fields <- c('Year', 'Player', 'Tm', 'Pos', 'Age', 'G', 
             'MP','FG', 'FGA', '3P', '3PA', '2P', '2PA',
-            'FT', 'FTA', 'TRB', 'AST', 'STL', 'BLK', 'PTS'
+            'FT', 'FTA', 'TRB', 'AST', 'STL', 'BLK', 'PTS',
+            'VORP', 'PER'
 )
 
 # fields needed
