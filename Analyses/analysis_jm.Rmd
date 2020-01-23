@@ -1,6 +1,5 @@
 ---
 title: "Analysis"
-author: "Joe Marlo, Andrew Pagtakhan, George Perrett, Bilal Waheed"
 output: pdf_document
 editor_options: 
   chunk_output_type: console
@@ -10,43 +9,6 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
 ```
-
-# THIS IS A PLACEHOLDER DOCUMENT THAT WE SHOULD FILL IN WITH OUR FINAL ANALYSIS
-
-Below are the guidelines Marc published
-
-# # INTRO AND DATA DESCRIPTION
-intro to the project, overview of the analysis plan
-
-1. Brief (1 paragraph) description of the data source and measurement scales associated with your feature set. This can be short, but we have to be oriented at least a little.
-2. Any additional variables that have been measured, not part of the clustering, to which you wish to make comparisons. Good examples are demographics, such as gender, race, ses, region. In the case of classification, this is the outcome.
-3. Question of interest (could be “which method performs better...”)
-
-## DATA EXPLORATION AND TRANSFORMATION
-
-1. Any pre-processing transformations you will perform, and/or whether you will do the clustering on the original scale, transformed/ standardized scale, or use (a full set of) principle components. Must be mentioned and reasons given, even if your decision is not to do any.
-2. Data pre-processing. Mention it only if it was substantial (to receive credit) [JOE TO WRITE]
-
-## METHOD: RATIONALE AND DISCUSSION
-Choice of method (and rationale). The choices can be somewhat arbitrary, but it must be clear that there is a comparison being considered. E.g, doing every analysis using hclust is not acceptable.
-Ca ) FOR CLUSTERING:
-a. How you will determine the number of clusters (at least one approach)?
-b. How will you and did you compare clusterings?
-
-## METHOD APPLICATION: TECHNICAL
-1. Good use of graphics to motivate/illustrate?
-2. Proper technique: (for clustering – typically this is choice of number of clusters or
-‘model’; for classification: this is the appropriateness of the modeling class to the problem at hand).
-3. Classification only: Train-test cycle appropriate and well executed.
-4. Comparisons were thorough?
-5. Conclusions were given/valid?
-
-## PRESENTATION
-1. Good insights in the interpretation of models/findings?
-2. Appropriate use of graphics?
-3. Challenging problem to solve?
-
-
 
 # Libraries and imports
 ```{r}
@@ -64,6 +26,7 @@ NBA.df <- read_csv('Data/season_stats_clean.csv')
 names(NBA.df)[3] <- "Team"
 
 ```
+
 
 # Data cleanup
 Why did we decide on these columns?
@@ -93,7 +56,7 @@ diff(apply(NBA.df[, cols.to.explore], MARGIN = 2, FUN = range))
 #   ggpairs()
 ```
 
-## Transform and standardize the data
+## Standardize and take the log of the data
 
 ```{r}
 # use Tukey Ladder of Powers to normalize the data
@@ -106,6 +69,32 @@ NBA.stdz <- scale(NBA.stdz) %>% as_tibble()
 # add back in the orginal attributes
 NBA.stdz <- bind_cols(NBA.df[, c("Player", "Pos", "Age", "Team", "Salary", "RPM")], NBA.stdz)
 
+```
+
+
+Log transform may not be neccessary
+```{r DELETE}
+# NBA.stdz <- NBA.df
+# 
+# # add some noise to remove 0s which will avoid -Inf after log transformation
+# NBA.stdz[, cols.to.keep] <- apply(NBA.stdz[, cols.to.keep], MARGIN = 2, jitter, amount = 0.001)
+# 
+# # apply log and scale
+# NBA.stdz[, cols.to.keep] <- log(NBA.stdz[, cols.to.keep])
+# NBA.stdz[, cols.to.keep] <- scale(NBA.stdz[, cols.to.keep])
+# 
+# # remove NaNs from the cols.to.keep columns only then join back to original
+# # data using a new index column
+# NBA.stdz <- NBA.stdz %>% 
+#   mutate(Index = row_number()) %>% 
+#   select(c(cols.to.keep, "Index")) %>% 
+#   na.omit() %>% 
+#   left_join(y = mutate(NBA.stdz[, c("Player", "Pos", "Age", "Team")],
+#                        Index = row_number()),
+#             by = "Index") %>% 
+#   select(-Index)
+# 
+# ggpairs(data = NBA.stdz, columns = cols.to.keep)
 ```
 
 ## Principle Component Analysis
@@ -183,15 +172,3 @@ plotly::ggplotly()
 ```
 
 
-
-# Division of labor
-
-Joe Marlo: 
-Andrew Pagtakhan:
-George Perrett:
-Bilal Waheed:
-
-Person 1: data cleaning, advisement on substantive aspects, visualizations/tables, some writing
-Person 2: data analysis for parts I & II
-Person 3: data analysis for parts III & IV, some writing.
-Person 4: primarily writing, synthesis.
