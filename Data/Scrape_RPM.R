@@ -20,36 +20,27 @@ page.count <- html_nodes(x = response,
   as.numeric()
 
 # loop through each page and scrap the table
-tables <- list()
-for (i in 1:page.count){
+tables <- lapply(1:page.count, function(page){
   
   # set the url
-  url <- paste0(base.url, "/page/", i)
+  url <- paste0(base.url, "/page/", page)
   response <- read_html(url)
   
-  # scrape the odd rows then the even rows from the webpage's table
-  # performing it rowwise because the columns do not have class names that
+  # scrape the rows from the webpage's table
+  # have to perform it rowwise because the columns do not have class names that
   #   we can reference
-  odds <- html_nodes(x = response,
-                     xpath = '//tr[contains(@class, "oddrow")]')
-  evens <- html_nodes(x = response,
-                      xpath = '//tr[contains(@class, "evenrow")]')
-  
-  # for each odds and evens, create a data.frame from the html
-  odds <- odds %>% 
-    html_children() %>% 
-    html_text() %>% 
-    matrix(ncol = 9, byrow = TRUE) %>% 
-    as_tibble()
-  evens <- evens %>% 
+  results <- html_nodes(x = response,
+                        xpath = '//tr[contains(@class, "row")]') %>% 
     html_children() %>% 
     html_text() %>% 
     matrix(ncol = 9, byrow = TRUE) %>% 
     as_tibble()
   
-  # combine those two tables into one and store in the list
-  tables[[i]] <- bind_rows(odds, evens)
-}
+  # pause
+  Sys.sleep(0.5)
+  
+  return(results)
+}) %>% bind_rows()
 
 # create final dataframe of salaries by combining each pages' results
 RPM.df <- tables %>% 
@@ -148,8 +139,9 @@ View(unmatched)
 # create a new column Matched.name and fill it with the corrected name
 unmatched$Matched.name <- NA
 unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
-          "Matched.name"] <- unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
-                                       "Match.1"]
+          "Matched.name"] <-
+  unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
+            "Match.1"]
 
 # create a new column New.name containing all the matched names
 all.matches$New.name <- all.matches$Current.name
@@ -165,6 +157,4 @@ stats.df %>%
 
 # write the final data.frame to csv
 write.csv(stats.df, 'Data/season_stats_clean.csv', row.names = FALSE)
-
-
 
