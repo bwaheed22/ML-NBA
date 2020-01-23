@@ -145,8 +145,6 @@ View(unmatched)
 # 42 ?
 # 43 2
 
-c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43)
-
 # create a new column Matched.name and fill it with the corrected name
 unmatched$Matched.name <- NA
 unmatched[c(1:5, 7:8, 11:13, 15, 16:21, 23, 24, 27, 29, 31:33, 35, 40, 41, 43),
@@ -158,9 +156,7 @@ all.matches$New.name <- all.matches$Current.name
 all.matches$New.name[all.matches$Index %in% unmatched$Index] <- unmatched$Matched.name
 
 # add the salary to the original stats.df dataframe
-stats.df$New.name <- all.matches$New.name
-stats.df$RPM <-  RPM.df$RPM[match(stats.df$New.name, salary.df$Player)]
-stats.df <- select(stats.df, -New.name)
+stats.df$RPM <-  RPM.df$RPM[match(all.matches$New.name, RPM.df$Player)]
 
 # visually check if the top salaries seem correct
 stats.df %>% 
