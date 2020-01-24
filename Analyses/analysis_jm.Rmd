@@ -154,12 +154,15 @@ NBA.stdz %>%
 
 ```
 
-# Post-hoc anlayses
+# Post-hoc analyses
 
 ```{r}
 # scatterplot of RPM vs. Salary
-ggplot(NBA.df, aes(x = RPM, y = Salary,
-                   color = as.factor(km.clusts$cluster),
+NBA.df %>% 
+  mutate(Cluster = as.factor(km.clusts$cluster)) %>% 
+  na.omit() %>% 
+  ggplot(aes(x = RPM, y = Salary,
+                   color = Cluster,
                    text = paste("Player:", Player))) +
   geom_point() +
   scale_y_continuous(labels = scales::dollar) +
