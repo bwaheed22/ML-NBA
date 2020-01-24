@@ -153,27 +153,38 @@ NBA.stdz %>%
             hjust = 0,
             vjust = 0)
 
+
 # model based clustering
-NBA.stdz %>% 
-  bind_cols(as_tibble(NBA.pca$scores[, 1:2])) %>% 
+mc.clusts <- NBA.stdz %>% 
   na.omit() %>% 
-  select(c("Player", "Pos", "Comp.1", "Comp.2", cols.to.explore)) %>% 
-  filter(Pos != 'PF-C') %>% 
-  select(-c("Player", "Comp.1", "Comp.2")) %>% 
+  mutate(Pos = if_else(Pos == 'PF-C',
+                       "PF",
+                       Pos)) %>% 
+  select(c("Pos", cols.to.explore)) %>% 
   group_by(Pos) %>% 
   nest() %>% 
   mutate(Cluster =  lapply(data, function(df) {
     Mclust(data = df,
            G = 4)$classification})) %>% 
   unnest(cols = c(data, Cluster)) %>% 
-  ungroup() %>% 
-  bind_cols(NBA.mc[, c("Player", "Comp.1", "Comp.2")]) %>% 
+  ungroup()
+
+# plot it
+mc.clusts %>% 
+  # merge with Player and PCA scores but remove the NA rows
+  bind_cols(
+    bind_cols(NBA.stdz,
+              as_tibble(NBA.pca$scores[, 1:2])) %>% 
+      na.omit() %>%
+      select(Player, Salary, RPM, Comp.1, Comp.2)
+    ) %>% 
   mutate(Cluster = as.factor(Cluster)) %>%
   ggplot(aes(x = Comp.1, y = Comp.2,
              color = Cluster,
+             size = Salary,
              text = paste("Player:", Player))) +
   geom_point() +
-  labs(col = "Cluster membership") +
+  labs(color = "Cluster membership") +
   facet_wrap(~Pos) +
   theme_minimal()
 
