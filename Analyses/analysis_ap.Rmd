@@ -7,9 +7,12 @@ output: pdf_document
 
 ```{r setup, include=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
 library(dplyr)
+library(dendextend)
+library(GGally)
 library(ggfortify)
 library(ggplot2)
 library(ggrepel)
+library(gridExtra)
 library(knitr)
 library(mclust)
 library(NbClust)
@@ -21,7 +24,7 @@ set.seed(14)
 rm(list = ls())
 
 # set working directory
-wd <- 'C:/Users/apagta950/Documents/NYU/Courses/Spring 2020/ML/Projects'
+wd <- 'C:/Users/apagta950/Documents/NYU/Courses/Spring 2020/ML/Projects/ML-NBA/Data/'
 opts_knit$set(root.dir = wd)
 
 # define file name for analysis
@@ -30,67 +33,122 @@ filename <- 'season_stats_clean.csv'
 
 # Research Question: Are there underlying patterns of groupings between NBA team compensation vs. overall team skillsets?
 
+## Data Cleaning
+The data cleaning was done in separate R scripts. 
+https://github.com/joemarlo/ML-NBA
+Steps:
+* Filtered data to the 2016 - 2017 season
+* Assigned player to one team based on the most minutes he played for, including stats across all teams played for
+* Scraped player salaries and RPM data from ESPN website, using fuzzy matching on player names to join to the main dataset
+* Scaled/Transformed data using cube root (shown below)
+
 ## Exploratory Data analysis
 ```{r}
+# load data
 nba <- read.csv(filename)
 str(nba)
 ```
 
 ```{r}
+# replace NA values in RPM column with 0s
+nba$RPM[is.na(nba$RPM)] <- 0
+```
+
+We decided to use the 14 features in our analysis (on a per game basis) because they provide a good balance of offensive (e.g Pts, Ast) and defensive stats (e.g. Reb, Blk). Additionally, advanced statistics such as VORP and PER utilize a combination of these 'base' statistics in their calculations. So, by using these base statistics between offensive and defensive metrics, this is more likely to provide more balanced groupings between those who are more offensive and those who are better at defense.
+```{r}
 # plot distributions of key per game stats
 features_pg <- grep('_pg', names(nba), value = TRUE)
 nba_feat <- nba[ , features_pg]
 
-# further subset for plotting
-feat_plot <- c('MP_pg', 'PTS_pg', 'AST_pg', 'TRB_pg', 'STL_pg', 'BLK_pg')
-# dataframe for plottinig
-nba_feat_plot <- nba_feat[ , feat_plot]
+# further subset for plotting purposes
+feat_plot <- c('MP_pg', 'PTS_pg', 'AST_pg', 'TRB_pg', 
+               'STL_pg', 'BLK_pg')
 
-# set plot windows
-par(mfrow = c(3, 2))
-par(oma = c(0, 0, 2, 0))
+# dataframe for plotting
+nba_feat_plot <- nba[ , feat_plot]
 
 # plot key stats
+plots_stats <- list(rep(NA, length = length(feat_plot)))
 for (i in seq_along(feat_plot)) {
-  plot(density(nba_feat_plot[ , i]), main = feat_plot[i])
-  abline(v = mean(nba_feat_plot[ , i], col = "blue"))
+  p <- ggplot(nba_feat_plot, aes_string(x = feat_plot[i])) + 
+        geom_density(fill = 'lightblue', alpha = 0.4) + 
+        ggtitle(feat_plot[i]) + 
+        # center title
+        theme(plot.title = element_text(hjust = 0.5))
+  plots_stats[[i]] <- p
 }
 
-# add title
-title('NBA Key Stats: Vert Line = Average', line = 0.5, outer = TRUE)
+# multiple plotting
+cowplot::plot_grid(plotlist = plots_stats, nrow = 2) 
 ```
 
-Most of the features such as points and assists look like they exhibit a negative binomial distribution.
+
+```{r, warning=FALSE}
+# look at pairs plots for key stats
+nba_feat_plot_pos <- cbind(nba_feat_plot, nba$Pos)
+ggpairs(nba_feat_plot_pos,
+        columns = 1:(length(names(nba_feat_plot_pos)) - 1),
+        progress = FALSE, 
+        mapping = ggplot2::aes(colour = nba$Pos, alpha = 0.4),
+        upper = list(continuous = wrap('cor', size = 0))
+)
+```
+
+Most of the features such as points and assists look like they exhibit a negative binomial distribution. If we look at the pairs plot, it looks like there are clear groupings by position.
 
 ## Run PCA to inspect if there are any groupings
 
-Before running any clustering algorithms, we will perform Principal Component Analysis to determine if there are any potential clusters. We first scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game. Most players will have more minutes per game than blocks per game.
+Before running any clustering algorithms, we will perform Principal Component Analysis to determine if there are any potential clusters. We first scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game - Most players will have more minutes per game than blocks per game.
 
 ```{r}
 # scale data
 nba_feat_sc <- scale(nba_feat)
 
 # run PCA
-nba_pca <- princomp(nba_feat_sc, cor = TRUE)
+# princomp() uses spectral decomposition
+# prcomp() uses singular value decomposition
+nba_pca <- prcomp(nba_feat_sc)
 summary(nba_pca)
 ```
 
-Since 2 components make up 83% of the cumulative variance, we will plot these.
+```{r}
+# create plot PCA data function
+plot_pca <- function(object, frame = FALSE, x = 1, y = 2, 
+                     data, colour, title, label) {
+  # plots data in PCA space 
+  # object = PCA or K-Means object
+  # x = which PC for x-axis (1, 2, ,3, etc..)
+  # y = which PC for y-axis (1, 2, 3, etc..)
+  # object: PCA or K-means object
+  # data = underlying data
+  p <- autoplot(nba_pca, x = x, y = y, data = nba, colour = colour, frame = frame) + 
+        ggtitle(title) + 
+        # center title
+        theme(plot.title = element_text(hjust = 0.5)) + 
+        geom_label_repel(aes(label = label),
+                        box.padding   = 0.35, 
+                        point.padding = 0.5,
+                        segment.color = 'grey50') +
+        theme_classic()
+  return(p)
+}
+```
+
+
+Since 2 components make up 83% of the cumulative variance, we will plot these
 
 ```{r}
-# Plot first two components with positions
 # Labels: Players who played more than 36 min per game or less than 3 min per game
-autoplot(nba_pca, data = nba, colour = 'Pos') + 
-  ggtitle('PCA: NBA - 14 features') + 
-  # center title
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_label_repel(aes(label = ifelse(MP_pg >= 36 | MP_pg <= 3, 
-                                      as.character(Player), '' )),
-                  box.padding   = 0.35, 
-                  point.padding = 0.5,
-                  segment.color = 'grey50') +
-  theme_classic()
+labels_pca <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
+                    as.character(nba$Player), '')
+title_pca <- paste0('PCA: NBA - ', ncol(nba_feat) ,' features')
+
+# Plot first two components with positions
+plot_pca(nba_pca, data = nba, colour = 'Pos', 
+         label = labels_pca, title = title_pca
+          )
 ```
+
 
 _Observations_
 Based on the PCA plot, it looks like there are natural grouping based on position from the colors coding. For example, the centers are on the bottom diagonal, point guards are near the top, and SF/PFs are in the middle. It is also noticable that the stars and superstars are on the right-side of the cluster. Since this looks like a fan, we can also say that the stars are placed more towards the 'tips' of the fan. So, we will hypothesize that there may also be clusters from left to right, where the right-most are the top players, and the left side are the lower performing players.
@@ -110,29 +168,116 @@ hcl_ward <-  hclust(d = nba_dist_sc, method = 'ward.D2')
 ```
 
 ```{r}
-# plot dendrograms
+# nearest neighbors method
 plot(hcl_single, hang = -1, main = 'Single Linkage', labels = FALSE)
+# groups centroid
 plot(hcl_centroid, hang = -1, main = 'Centroid Linkage', labels = FALSE)
-plot(hcl_centroid, hang = -1, main = 'Ward (D2) Linkage', labels = FALSE)
+# Ward’s minimum variance method, 
+# with dissimilarities are squared before clustering
+dend <- as.dendrogram(hcl_ward)
+hcl_k <- 4
+dend_col <- color_branches(dend, k = hcl_k)
+plot(dend_col, main = paste0('Ward (D2) Linkage: K = ', hcl_k))
+```
+
+Since the Ward dendrogram seems to be the best among the three, we will look at its distribution for 3 and 4 clusters. We chose these initial groupings because this is a good number of initial clusters to group NBA players.
+```{r}
+# add cluster labels to main data
+nba$hcl_ward_labs_three <- cutree(hcl_ward, k = 3)
+nba$hcl_ward_labs_four <- cutree(hcl_ward, k = 4)
+
+# plot frequencies
+p_one <- ggplot(data = nba, aes(x = hcl_ward_labs_three)) + 
+          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 3')
+p_two <- ggplot(data = nba, aes(x = hcl_ward_labs_four)) + 
+          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 4')
+
+# combine
+cowplot::plot_grid(p_one, p_two, nrow = 2)
 ```
 
 
 ```{r}
-# Look at clustering distributions for arbitrary number of clusters
-table(cutree(hcl_single, k = 5))
-table(cutree(hcl_centroid, k = 5))
-table(cutree(hcl_ward, k = 5))
+# add labels to data
+nba$hcl_ward_three <- factor(cutree(hcl_ward, k = 3))
+nba$hcl_ward_four <- factor(cutree(hcl_ward, k = 4))
+
+# player names to include in plot
+hcl_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 2.5 |
+                     (nba$MP_pg >= 28.8 & nba$MP_pg <= 29) | 
+                     (nba$MP_pg >= 25 & nba$MP_pg <= 25.2),
+                     as.character(nba$Player), '' )
+
+# elements to loop over
+hcl_labs <- names(nba %>% select(tail(names(.), 2)))
+hcl_ks <- c(3, 4)
+
+# plot hclust labels superimposed over PCA
+for (i in seq_along(hcl_labs)) {
+  p <- plot_pca(nba_pca, frame = TRUE, 
+                data = nba, colour = hcl_labs[i],
+                title = paste0('PCA: ', hcl_ks[i], ' clusters (Hclust)'),
+                label = hcl_labels
+  )
+
+  print(p)
+}
 ```
 
-Hierarchical clustering does not seem to be an appopriate method to cluster the NBA playears for multiple reasons. The cluster distribution is very skewed and almost meaningless. Additionally, the dendrogram does not indicate any clear height or number of reasonable groups we can break out. We will now try K-Means clustering.
+
+Visually, it looks like the four cluster solution may be able to give us more actionable insights vs the 3-cluster method. The average stats by cluster shows pretty clear separation among the groups. Group 4 are the stars, followed by group 2, 3, and then 4. The main difference between groups 2 and 3 is that group 2 looks to contain more players who tend to have more rebound and blocks per game.
+
+
+```{r}
+# averages by cluster
+nba_hclust_avg <- data.frame(nba
+                            %>% select(hcl_ward_four, MP_pg, PTS_pg, TRB_pg,
+                                       AST_pg, BLK_pg, STL_pg, VORP, PER, RPM)
+                            %>% group_by(hcl_ward_four)
+                            %>% summarise_all(list(mean))
+                            )
+nba_hclust_avg
+```
+
+
+```{r}
+# sample 10 players from each cluster
+for (k in 1:hcl_ks[2]) {
+  print(paste0('Cluster ', k))
+  print(sample(subset(nba, hcl_ward_four == k)$Player, size = 10))
+}
+```
+
+### Optimize number of clusters
+
+Method: Calinski-Harabasz index
+```{r}
+# get optimal cluster sizes 
+cluster_sizes_hcl <- NbClust(data = nba_feat_sc,
+                          # it will likely be harder to interpret clusters
+                          # past this amount
+                          max.nc = 6,
+                          method = 'ward.D2',
+                          index = 'ch')
+
+# plot C(G)
+plot(names(cluster_sizes_hcl$All.index),
+     cluster_sizes_hcl$All.index,
+     main = 'Calinski-Harabasz index: HCL',
+     type = 'l')
+```
+
+
+Among the different hierarchical clustering methods, the Ward method seems to be the best. The dendogram looks the most structured and the distribution of players in each cluster is more balanced. Hierarchical clustering could seem like a potential fit if we want the better players to be in a more 'select' group. Although the CH index indicates 2 clusters is optimal, we need to look at the practicality as well. 3 clusters may hav differences between groups of players. But, it is possible that NBA front offices will likely need more differentation when grouping player performance. Looking at the 4 cluster solutions and stats, the blue cluster tends to have more players who rebound, block more shots and tend to be more efficient (based on PER). So, these clusters seem to have decent separation from each other. We will now try K-Means clustering too see if that works better.
 
 ### K-Means
 
 ```{r}
 # try K-means clustering
-# try 5 clusters first
+# try arbitrary number of clusters first
+km_k <- 5
 km_five <- kmeans(x = nba_feat_sc,
-            centers = 5,
+            centers = km_k,
             nstart = 100,
             algorithm = 'Hartigan-Wong')
 
@@ -140,36 +285,52 @@ km_five <- kmeans(x = nba_feat_sc,
 
 
 ```{r}
-# plot clusters in PCA
+# plot k-means clusters in PC space
+nba$km_labs_five <- factor(km_five$cluster)
 # Labels: Players who played more than 36 min per game or less than 3 min per game
-autoplot(km_five, data = nba, frame = TRUE) + 
-  ggtitle('PCA - 5 clusters (K-means)') + 
-  # center title
-  theme(plot.title = element_text(hjust = 0.5)) + 
-  geom_label_repel(aes(label = ifelse(MP_pg >= 36 | MP_pg <= 3, 
-                                      as.character(Player), '' )),
-                  box.padding   = 0.35, 
-                  point.padding = 0.5,
-                  segment.color = 'grey50') +
-  theme_classic()
+km_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
+                         as.character(nba$Player), '' )
 
+plot_pca(km_five, data = nba, frame = TRUE, colour = 'km_labs_five',
+          title = paste0('PCA: ', km_k, ' clusters (K-means)'),
+          label = km_labels)
 ```
+
 
 ```{r}
-# get distribution of players
-table(km_five$cluster)
+# get distribution of players in each cluster
+ggplot(data = nba, 
+       aes(x = km_labs_five)) + 
+       geom_bar(fill = 'lightblue') + 
+       ggtitle('HCL: K = 5')
+
 ```
 
 
-It looks like the clusters are somewhat interpretable. Clusters to the right seem to indicate star players, while clusters to the left indicate lower performing players. However, there does seem to be some overlap between clusters in the middle, namely clusters 2, 3 and 4. Additionally, it looks like there is room to better balance the number of players in each cluster. We will now optimize the number of clusters utilizing the Calinski-Harabasz index.
+It looks like the clusters are somewhat interpretable. Clusters to the right seem to indicate star players, while clusters to the left indicate lower performing players. However, the question becomes if 5 clusters is meaningful. Based on the averages for each cluster, there is not much difference between clusters 2 and 4. Additionally, it looks like there is room to better balance the number of players in each cluster and create more separation between clusters. We will now optimize the number of clusters utilizing the Calinski-Harabasz index.
+
+```{r}
+# averages by cluster
+nba_km_five_avg <- data.frame(nba
+                            %>% select(km_labs_five, MP_pg, PTS_pg, TRB_pg,
+                                       AST_pg, BLK_pg, STL_pg, VORP, PER, RPM)
+                            %>% group_by(km_labs_five)
+                            %>% summarise_all(list(mean))
+                            )
+nba_km_five_avg
+```
+
+
 
 ### Optimize number of clusters
 
 Method: Calinski-Harabasz index
 ```{r}
 # get optimal cluster sizes 
-cluster_sizes_km <- NbClust(data = nba_feat_sc, 
-                          max.nc = 10,
+cluster_sizes_km <- NbClust(data = nba_feat_sc,
+                          # it will likely be harder to interpret clusters
+                          # past this amount
+                          max.nc = 6,
                           method = 'kmeans',
                           index = 'ch')
 
@@ -195,7 +356,7 @@ _Observations_
 Although the CH index indicates that the optimal number of clusters is 2, this seems too low of a number to meaningfully break out the NBA players into groups. It is also important to note that the CH index is a heuristic method. So although CH is a good approach to look for the number of clusters, it is important to combine this with our practical goal of looking for underlying patterns in the players. Thus, I think a more reasonable number to understand the data is with 3 - 4 clusters, which show the second and third best partitions based on the CH index. We will look at both and determine which one is a better fit for our goal.
 
 
-### Try 3 and 4 clusters
+### Try 3 and 4 clusters (K-Means)
 
 ```{r}
 # number of clusters to try
@@ -214,46 +375,41 @@ for (i in seq_along(num_clust)) {
 
 
 ```{r}
-# plot clusters in PCA
-# Labels: Players who played more than 36 min per game or less than 3 min per game
+# add cluster labels to main data
+nba$km_labs_three <- factor(clust_list[[1]]$cluster)
+nba$km_labs_four <- factor(clust_list[[2]]$cluster)
+# elements to loop over
+km_labs <- names(nba %>% select(tail(names(.), 2)))
+km_ks <- c(3, 4)
+
+# plot k-means clusters in PC space
 for (i in seq_along(clust_list)) {
-  p <- autoplot(clust_list[[i]], data = nba, frame = TRUE) + 
-        ggtitle(paste0('PCA: ', num_clust[i], ' clusters (K-means)')) + 
-        # center title
-        theme(plot.title = element_text(hjust = 0.5)) + 
-        geom_label_repel(aes(label = ifelse(MP_pg >= 36 | 
-                                              MP_pg <= 3 |
-                                            (MP_pg >= 25 & MP_pg <= 25.5), 
-                                            as.character(Player), '' )),
-                        box.padding   = 0.35, 
-                        point.padding = 0.5,
-                        segment.color = 'grey50') +
-        theme_classic()
+  p <- plot_pca(clust_list[[i]], data = nba, frame = TRUE, colour = km_labs[i],
+          title = paste0('PCA: ', km_ks[i], ' clusters (K-means)'),
+          label = km_labels)
   print(p)
 }
-
 ```
+
 
 ```{r}
-# get cluster distributions
-table(clust_list[[1]]$cluster)
-table(clust_list[[2]]$cluster)
+# number of players in each cluster
+p_three <- ggplot(data = nba, aes(x = km_labs_three)) + 
+          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 3')
+p_four <- ggplot(data = nba, aes(x = km_labs_four)) + 
+          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 4')
+
+# combine
+cowplot::plot_grid(p_three, p_four, nrow = 2)
 ```
 
-We can further check clusters by checking look at statistic averages across stats. 
-```{r}
-# add three and four cluster labels to main dataframe
-nba$km_labs_three <- clust_list[[1]]$cluster
-nba$km_labs_four <- clust_list[[2]]$cluster
-```
-
-
+We may be able to get more insight with four clusters instead of three. We will sample players from each cluster and look at cluster averages.
 ```{r}
 # averages by cluster
 nba_clust_avg <- data.frame(nba
-                            %>% select(km_labs_three, MP_pg, PTS_pg, TRB_pg,
+                            %>% select(km_labs_four, MP_pg, PTS_pg, TRB_pg,
                                        AST_pg, BLK_pg, STL_pg)
-                            %>% group_by(km_labs_three)
+                            %>% group_by(km_labs_four)
                             %>% summarise_all(list(mean))
                             )
 nba_clust_avg
@@ -261,15 +417,15 @@ nba_clust_avg
 
 ```{r}
 # sample 10 players in each cluster
-for (k in 1:3) {
+for (k in 1:4) {
   print(paste0('Clusters: ', k))
-  print(sample(subset(nba, km_labs_three == k)$Player, size = 10))
+  print(sample(subset(nba, km_labs_four == k)$Player, size = 10))
 }
 
 ```
 
 
-Based on the plot, cluster distributions, and group averages, it looks like 3 clusters is optimal. One main reason is that there is more separation vs 4 clusters. Across the statistics, it looks like the clusters are broken out into the following: Best players, Good players, and Low-performing players. We will now try model-based clustering to account for relationships between features.
+Based on the plot, cluster distributions, and group averages, it looks like 4 clusters is optimal. One main reason is that there is more separation vs 4 clusters, which can provide more value when bucketing players by overall skillsets. Across the statistics, it looks like the clusters are broken out into the following: Best players (2), Good players with more assists, i.e. guards (1), good players who rebound and block more, .e.g forwards (4), and Low-performing players (3). We will now try model-based clustering as a third method.
 
 ### Model-Based Clustering
 
