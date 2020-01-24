@@ -35,7 +35,7 @@ tables <- lapply(1:page.count, function(page){
     as_tibble()
   
   # pause
-  Sys.sleep(0.5)
+  Sys.sleep(rnorm(1, mean = 0.5, sd = 0.1))
   
   return(results)
 }) %>% bind_rows()
@@ -44,10 +44,7 @@ tables <- lapply(1:page.count, function(page){
 salary.df <- tables %>% 
   setNames(c("Rank", "Player", "Team", "Salary")) %>% 
   mutate(Rank = as.numeric(Rank),
-         Salary = substr(Salary,
-                         start = 2,
-                         stop = length(Salary)) %>% 
-           str_remove_all(., ",") %>% 
+         Salary = str_remove_all(Salary, "\\$*,*") %>% 
            as.numeric()) %>% 
   separate(col = Player, into = c("Player", "Pos"),
            sep = ", ") %>% 

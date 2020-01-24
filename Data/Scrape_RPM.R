@@ -37,7 +37,7 @@ tables <- lapply(1:page.count, function(page){
     as_tibble()
   
   # pause
-  Sys.sleep(0.5)
+  Sys.sleep(rnorm(1, mean = 0.5, sd = 0.1))
   
   return(results)
 }) %>% bind_rows()
