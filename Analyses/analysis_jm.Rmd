@@ -20,6 +20,7 @@ library(GGally)
 library(ggrepel)
 library(ggfortify)
 library(rcompanion)
+library(mclust)
 set.seed(44)
 
 NBA.df <- read_csv('Data/season_stats_clean.csv')
@@ -151,6 +152,37 @@ NBA.stdz %>%
                 alpha = RPM),
             hjust = 0,
             vjust = 0)
+
+# model based clustering
+NBA.mc <- NBA.stdz %>% 
+  bind_cols(as_tibble(NBA.pca$scores[, 1:2])) %>% 
+  na.omit() %>% 
+  select(c("Player", "Pos", "Comp.1", "Comp.2", cols.to.explore)) %>% 
+  filter(Pos != 'PF-C')
+
+# fit one model per position
+mc.clusts <- lapply(X = split(NBA.mc[, -(1:4)], NBA.mc$Pos), FUN = function(x) Mclust(data = x, G = 4)$classification)
+
+# bind back the cluster groups with the data
+NBA.mc <- lapply(names(mc.clusts), function(df){
+  bind_cols(split(NBA.mc, NBA.mc$Pos)[[df]],
+            enframe(mc.clusts[[df]]))
+}) %>% bind_rows() %>% select(-name)
+
+# plot it
+NBA.mc %>% 
+  rename(Cluster = value) %>%
+  mutate(Cluster = as.factor(Cluster)) %>%
+  ggplot(aes(x = Comp.1, y = Comp.2,
+             color = Cluster,
+             text = paste("Player:", Player))) +
+  geom_point() +
+  labs(col = "Cluster membership") +
+  facet_wrap(~Pos) +
+  theme_minimal()
+
+# interactive plot
+plotly::ggplotly()
 
 ```
 
