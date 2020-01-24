@@ -154,24 +154,20 @@ NBA.stdz %>%
             vjust = 0)
 
 # model based clustering
-NBA.mc <- NBA.stdz %>% 
+NBA.stdz %>% 
   bind_cols(as_tibble(NBA.pca$scores[, 1:2])) %>% 
   na.omit() %>% 
   select(c("Player", "Pos", "Comp.1", "Comp.2", cols.to.explore)) %>% 
-  filter(Pos != 'PF-C')
-
-# fit one model per position
-mc.clusts <- lapply(X = split(NBA.mc[, -(1:4)], NBA.mc$Pos), FUN = function(x) Mclust(data = x, G = 4)$classification)
-
-# bind back the cluster groups with the data
-NBA.mc <- lapply(names(mc.clusts), function(df){
-  bind_cols(split(NBA.mc, NBA.mc$Pos)[[df]],
-            enframe(mc.clusts[[df]]))
-}) %>% bind_rows() %>% select(-name)
-
-# plot it
-NBA.mc %>% 
-  rename(Cluster = value) %>%
+  filter(Pos != 'PF-C') %>% 
+  select(-c("Player", "Comp.1", "Comp.2")) %>% 
+  group_by(Pos) %>% 
+  nest() %>% 
+  mutate(Cluster =  lapply(data, function(df) {
+    Mclust(data = df,
+           G = 4)$classification})) %>% 
+  unnest(cols = c(data, Cluster)) %>% 
+  ungroup() %>% 
+  bind_cols(NBA.mc[, c("Player", "Comp.1", "Comp.2")]) %>% 
   mutate(Cluster = as.factor(Cluster)) %>%
   ggplot(aes(x = Comp.1, y = Comp.2,
              color = Cluster,
@@ -205,5 +201,6 @@ NBA.df %>%
 plotly::ggplotly()
 
 ```
+
 
 
