@@ -101,8 +101,23 @@ Most of the features such as points and assists look like they exhibit a negativ
 Before running any clustering algorithms, we will perform Principal Component Analysis to determine if there are any potential clusters. We first scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game - Most players will have more minutes per game than blocks per game.
 
 ```{r}
-# scale data
-nba_feat_sc <- scale(nba_feat)
+# scale/transform data
+methods <- c('scale', 'log', 'cube_root')
+# choose method - change index
+method = methods[1]
+nba_feat_sc <- if (method == methods[1]) {
+               scale(nba_feat) 
+              } else if (method == methods[2]) {
+              # replace 0s with small number
+              nba_feat[nba_feat == 0] <- .0001
+              log(nba_feat) 
+              } else {
+              (nba_feat)^(1/3)
+              }
+
+# sample size when sampling players in each cluster
+# when taking the log, there may not be enough players to sample from
+sample_size <- if (method == methods[2]) 2 else 10
 
 # run PCA
 # princomp() uses spectral decomposition
@@ -241,10 +256,10 @@ nba_hclust_avg
 
 
 ```{r}
-# sample 10 players from each cluster
+# sample players from each cluster
 for (k in 1:hcl_ks[2]) {
   print(paste0('Cluster ', k))
-  print(sample(subset(nba, hcl_ward_four == k)$Player, size = 10))
+  print(sample(subset(nba, hcl_ward_four == k)$Player, size = sample_size))
 }
 ```
 
@@ -395,9 +410,9 @@ for (i in seq_along(clust_list)) {
 ```{r}
 # number of players in each cluster
 p_three <- ggplot(data = nba, aes(x = km_labs_three)) + 
-          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 3')
+          geom_bar(fill = 'lightblue') + ggtitle('KM: K = 3')
 p_four <- ggplot(data = nba, aes(x = km_labs_four)) + 
-          geom_bar(fill = 'lightblue') + ggtitle('HCL: K = 4')
+          geom_bar(fill = 'lightblue') + ggtitle('KM: K = 4')
 
 # combine
 cowplot::plot_grid(p_three, p_four, nrow = 2)
@@ -416,10 +431,10 @@ nba_clust_avg
 ```
 
 ```{r}
-# sample 10 players in each cluster
+# sample players in each cluster
 for (k in 1:4) {
   print(paste0('Clusters: ', k))
-  print(sample(subset(nba, km_labs_four == k)$Player, size = 10))
+  print(sample(subset(nba, km_labs_four == k)$Player, size = sample_size))
 }
 
 ```
@@ -431,8 +446,8 @@ Based on the plot, cluster distributions, and group averages, it looks like 4 cl
 
 ```{r}
 # run model-based clustering
-nba_mcl <- Mclust(nba_feat_sc)
-summary(nba_mcl)
+# nba_mcl <- Mclust(nba_feat_sc)
+# summary(nba_mcl)
 ```
 
 ## PITFALL: more minutes per game tends towards higher stats per game.. redo metric to per 36 min instead? However, this has its fallbacks too.. Ex: player who played for 2 min with 2 pts and 2 reb would transalte to 18 pts and 18 reb per 36 min.. ##
