@@ -24,11 +24,11 @@ set.seed(14)
 rm(list = ls())
 
 # set working directory
-wd <- 'C:/Users/apagta950/Documents/NYU/Courses/Spring 2020/ML/Projects/ML-NBA/Data/'
-opts_knit$set(root.dir = wd)
+# wd <- 'C:/Users/apagta950/Documents/NYU/Courses/Spring 2020/ML/Projects/ML-NBA/Data/'
+opts_knit$set(root.dir = normalizePath('..'))
 
 # define file name for analysis
-filename <- 'season_stats_clean.csv'
+filename <- 'Data/season_stats_clean.csv'
 ```
 
 # Research Question: Are there underlying patterns of groupings between NBA team compensation vs. overall team skillsets?
