@@ -232,9 +232,9 @@ NBA.df %>%
   scale_y_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green") +
   labs(title = "Finding underpaid players based on cluster memebership",
-       subtitle = "Difference between Player Salary and Respective Cluster Mean",
+       subtitle = "Difference between player salary and respective cluster mean",
        x = "",
-       y = "Difference between Salary and Cluster Mean (in millions)\n Negative indicates overpaid") +
+       y = "Difference between salary and cluster Mean (in millions)\n Negative indicates overpaid") +
   coord_flip() +
   theme_minimal() +
   theme(legend.position = "none")
