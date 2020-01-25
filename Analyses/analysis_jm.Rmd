@@ -8,6 +8,7 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+knitr::opts_knit$set(root.dir = normalizePath('..'))
 ```
 
 # Libraries and imports
@@ -189,7 +190,7 @@ mc.clusts %>%
   theme_minimal()
 
 # interactive plot
-plotly::ggplotly()
+# plotly::ggplotly()
 
 ```
 
@@ -209,7 +210,7 @@ NBA.df %>%
   theme_minimal()
 
 # interactive plot
-plotly::ggplotly()
+# plotly::ggplotly()
 
 ```
 
