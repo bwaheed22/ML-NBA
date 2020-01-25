@@ -214,5 +214,31 @@ NBA.df %>%
 
 ```
 
+```{r}
+
+NBA.df %>% 
+  mutate(Cluster = as.factor(km.clusts$cluster)) %>% 
+  na.omit() %>% 
+  group_by(Cluster) %>% 
+  mutate(Clust_Salary = mean(Salary)) %>%
+  ungroup() %>% 
+  mutate(Salary_diff = (Clust_Salary - Salary) / 1000000) %>% 
+  ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff, color = Salary_diff)) +
+  geom_point() +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             color = "grey40") +
+  scale_x_discrete(breaks = function(x) x[c(TRUE, rep(FALSE, 20 - 1))]) +
+  scale_y_continuous(labels = scales::dollar) +
+  scale_color_gradient2(mid = "grey80", high = "green") +
+  labs(title = "Finding underpaid players based on cluster memebership",
+       subtitle = "Difference between Player Salary and Respective Cluster Mean",
+       x = "",
+       y = "Difference between Salary and Cluster Mean (in millions)\n Negative indicates overpaid") +
+  coord_flip() +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
 
 
