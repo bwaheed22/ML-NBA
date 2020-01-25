@@ -146,8 +146,9 @@ plot_pca(nba_pca, data = nba, colour = 'Pos',
           )
 ```
 
-See plotting in 3D
-```{r}
+
+```{r, include = FALSE}
+# plot in 3d
 pca_plot <- nba_pca$x[ , 1:3]
 plot3d(pca_plot)
 ```
@@ -233,8 +234,9 @@ for (i in seq_along(hcl_labs)) {
 }
 ```
 
-#3d plot
-```{r}
+
+```{r, include = FALSE}
+# plot 3d
 hcl_pca <- cbind(nba_pca$x[ , 1:3], enframe(nba$hcl_ward_labs_four))
 pca_plot <- hcl_pca
 plot3d(pca_plot, 
@@ -506,22 +508,22 @@ ggplot(data = nba, aes(x = Salary, y = PER)) +
 
 ```{r}
 # Highest Paid players in Lowest Tier
-data.frame(nba
+head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, 
                       Salary, PER, cl_label)
            %>% filter(km_labs_four == 1)
            %>% arrange(desc(Salary))
-           )
+           ))
 
 ```
 
 ```{r}
 # Lowest Paid players in highest tier
-data.frame(nba
+head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, Salary, PER, cl_label)
            %>% filter(km_labs_four == 4)
            %>% arrange(Salary)
-           )
+           ))
 
 ```
 
@@ -532,11 +534,39 @@ There is potential to update salaries based on player tiers. For example, Chandl
 ## George to break out chart by cluster ##
 
 ```{r include=FALSE}
+<<<<<<< HEAD
 # create list of players to highlight on the player salary diff plot
 #anDREW/GEORGE to set the names to keep
 players.to.show <- c("LeBron James", "Carmelo Anthony", "Gerald Henderson",
                      "Taurean Waller-Prince", "Shelvin Mack", "Devin Booker",
                      as.character(sample(nba$Player[seq(2, 486, 6)], 10)))
+=======
+#JOE TO FIX THIS
+players.to.show <- as.character(nba$Player)
+
+players_cl_one <- c("Chandler Parsons", "Miles Plumlee", "Mirza Teletovic", 
+                    "Al Jefferson", "Alec Burks", "Omri Casspi", 
+                    "Jose Calderon", "Fred VanVleet", "Patrick McCaw",
+                    "Dorian Finney-Smith")
+
+players_cl_two <- c("Malcolm Brogdon", "Ty Lawson", "Marreese Speights", 
+                    "Seth Curry", "Will Barton", "Allen Crabbe", "Luol Deng", 
+                    "Kent Bazemore", "Jeff Green", "J.R. Smith")
+
+players_cl_three <- c("Montrezl Harrell", "Clint Capela", "Nikola Jokic", 
+                      "Rudy Gobert", "Willy Hernangomez", "Bismack Biyombo", 
+                      "Dwight Howard", "Joakim Noah", "Tristan Thompson", 
+                      "Timofey Mozgov")
+
+players_cl_four <- c("Devin Booker", "Zach LaVine", "Joel Embiid", 
+                     "Stephen Curry", "Isaiah Thomas", "LeBron James", 
+                     "Mike Conley", "Carmelo Anthony", "Brook Lopez", 
+                     "Derrick Rose")
+
+player.list <- c(players_cl_one, players_cl_two,
+                 players_cl_three, players_cl_four)
+players.to.show[!(players.to.show %in% player.list)] <- ""
+>>>>>>> b229e3f697e2aa57de09838ef0dd7be00be27515
 ```
 
 
@@ -617,11 +647,11 @@ arrange(nba_team, desc(avg_clust))
 
 ```{r}
 # plot
-## ANDREW TO FORMAT SALARY #
 ggplot(nba_team, 
        aes(x = team_salary, y = win_pct, color = avg_clust)) + 
   geom_smooth(method = 'lm', formula = y ~ x, se = FALSE, color = 'gray') +
   geom_point() + 
+  scale_x_continuous(labels = scales::dollar_format()) +
   geom_label_repel(label = nba_team$Tm) + 
   ggtitle('Win % vs. Team Salary') + 
   theme_classic()
