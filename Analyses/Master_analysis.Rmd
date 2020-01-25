@@ -1,6 +1,6 @@
 ---
 title: 'ML Final Project: Analysis'
-author: "Andrew Pagtakhan"
+author: "Andrew Pagtakhan, Joe Marlo, Bilal Waheed, George Perrett"
 date: "January 20, 2020"
 output: pdf_document
 ---
@@ -532,26 +532,35 @@ There is potential to update salaries based on player tiers. For example, Chandl
 ## George to break out chart by cluster ##
 
 ```{r include=FALSE}
-#JOE TO FIX THIS
+# create list of players to highlight on the player salary diff plot
 #anDREW/GEORGE to set the names to keep
-players.to.show <- as.character(nba$Player)
-player.list <- c("LeBron James")
-players.to.show[!(players.to.show %in% player.list)] <- ""
+players.to.show <- c("LeBron James", "Carmelo Anthony", "Gerald Henderson",
+                     "Taurean Waller-Prince", "Shelvin Mack", "Devin Booker",
+                     as.character(sample(nba$Player[seq(2, 486, 6)], 10)))
 ```
 
 
 ```{r}
-nba %>%
+# create data frame that includes the differnece in player salary and cluster avg salary
+salary.diff.df <- nba %>%
   group_by(km_labs_four) %>%
   mutate(Clust_Salary = mean(Salary)) %>%
   ungroup() %>%
-  mutate(Salary_diff = (Clust_Salary - Salary) / 1000000) %>%
-  ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff, color = Salary_diff)) +
+  mutate(Salary_diff = (Clust_Salary - Salary) / 1000000,
+         Player = as.character(Player),
+         Label = if_else(Player %in% players.to.show, Player, "")) %>% 
+  arrange(Salary_diff)
+
+# plot it
+salary.diff.df %>% 
+  ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff,
+             color = Salary_diff, labels = Label)) +
   geom_point() +
   geom_hline(yintercept = 0,
              linetype = "dashed",
              color = "grey40") +
-  scale_x_discrete(labels = players.to.show) +
+  scale_x_discrete(breaks = salary.diff.df$Label) +
+  # scale_x_discrete(labels = salary.diff.df$Label) +
   scale_y_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green") +
   labs(title = "Finding underpaid players based on cluster membership",
