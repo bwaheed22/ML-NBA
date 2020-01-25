@@ -104,7 +104,7 @@ Before running any clustering algorithms, we will perform Principal Component An
 # scale/transform data
 methods <- c('scale', 'log', 'cube_root')
 # choose method - change index
-method = methods[1]
+method <- methods[1]
 nba_feat_sc <- if (method == methods[1]) {
                scale(nba_feat) 
               } else if (method == methods[2]) {
@@ -451,3 +451,117 @@ Based on the plot, cluster distributions, and group averages, it looks like 4 cl
 ```
 
 ## PITFALL: more minutes per game tends towards higher stats per game.. redo metric to per 36 min instead? However, this has its fallbacks too.. Ex: player who played for 2 min with 2 pts and 2 reb would transalte to 18 pts and 18 reb per 36 min.. ##
+
+## Post-Cluster Analysis
+
+We will now look at different statistics and demographics to see how the clustering lines up
+
+### Clusters vs. Player Salaries
+Try: K-means, 4 clusters
+```{r}
+# salary vs. advanced stats, overlayed with clusters
+
+# cluster label to use
+cl_label <- "km_labs_four"
+
+# plot PER vs. salary
+ggplot(data = nba, aes(x = Salary, y = PER)) + 
+  geom_point(aes_string(color = cl_label)) + 
+  geom_label_repel(aes(label = labels_pca),
+                box.padding   = 0.35, 
+                point.padding = 0.5,
+                segment.color = 'grey50') + 
+  ggtitle('PER vs. Salary') + 
+  theme_classic()
+```
+
+```{r}
+# plot salary distribution
+ggplot(nba, aes(x = Salary)) + 
+  geom_density(fill = 'lightblue', alpha = 0.4) + 
+  ggtitle('Salary distribution') + 
+  geom_vline(xintercept = mean(nba$Salary), 
+             color = "blue", 
+             linetype = 'dashed')
+
+```
+
+```{r}
+# salary statistics
+summary(nba$Salary)
+```
+
+
+```{r}
+# Highest Paid players in Lowest Tier
+data.frame(nba
+           %>% select(Player, G, MP_pg, Tm, 
+                      Salary, PER, cl_label)
+           %>% filter(km_labs_four == 1)
+           %>% arrange(desc(Salary))
+           )
+
+```
+
+```{r}
+# Lowest Paid players in highest tier
+data.frame(nba
+           %>% select(Player, G, MP_pg, Tm, Salary, PER, cl_label)
+           %>% filter(km_labs_four == 4)
+           %>% arrange(Salary)
+           )
+
+```
+
+
+_Observations_
+Based on the plot and tables, it looks like there is potential to update salaries based on player tiers. For example, Chandler Parsons was paid 22M but is considered a low tier player, and is paid more than the high tier players such as Steph Curry (12M) and Kawhi Leonard (17.6M).
+
+### Team Compensation and Performance vs clusters
+
+```{r}
+# convert labels to numeric
+nba$cl_lab_numeric <- as.numeric(nba[ , cl_label])
+nba_team <- data.frame(nba 
+                       %>% select(Tm, Salary, win_pct, cl_lab_numeric) 
+                       %>% group_by(Tm) 
+                       %>% summarise(team_salary = sum(Salary),
+                                     win_pct = mean(win_pct),
+                                     avg_clust = mean(cl_lab_numeric))
+                       )
+
+# order by descnding average cluster label
+arrange(nba_team, desc(avg_clust))
+```
+
+
+```{r}
+# plot
+ggplot(nba_team, 
+       aes(x = team_salary, y = win_pct, color = avg_clust)) + 
+  geom_point() + 
+  geom_label_repel(label = nba_team$Tm) + 
+  ggtitle('Win % vs. Team Salary') + 
+  theme_classic()
+```
+
+
+```{r}
+# Inspect some teams
+teams_sample <- c('NYK', 'GSW', 'BOS')
+
+teams_sample_list <- list(rep(NA, length = length(teams_sample)))
+for (i in seq_along(teams_sample)) {
+  teams_sample_list[[i]] <- nba[nba$Tm == teams_sample[i], 
+                                c('Player', 'PER', cl_label)]
+}
+
+# change index to see different teams
+teams_sample_list[[2]]
+```
+
+
+_Observations_
+Although a team can have better players on average clusters, there are many variables at play here. A team can be better on average but poor management or coaching can affect a team's overall performance, e.g. NYK. Interestingly, GSW did not have the highest average cluster rating, because their bench is not very strong. This speaks to the strong influence that starter players can have on team performance. Another interesting note is that teams can play well even if they do not have many all-stars or a strong overall team, e.g BOS. This could be driven by great coaching and team chemistry. It is important to note that items such as injuries could greatly influence win %, even if players have high ratings. 
+
+Although there is a correlation between overall team salary and win %, it is interesting that average player rating does not necessarily align with overall win %.
