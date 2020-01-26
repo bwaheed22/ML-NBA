@@ -557,7 +557,7 @@ players_cl_four <- c("Devin Booker", "Zach LaVine", "Joel Embiid",
 players.to.show <- c(players_cl_one[1], players_cl_two[1],
                  players_cl_three[1], players_cl_four[1])
 
-players.to.show <- c("Harrison Barnes", "Trey Lyles", "James Johnson")
+players.to.show <- c("Al Horford", "Harrison Barnes", "Trey Lyles", "James Johnson", "Devin Booker")
 ```
 
 
@@ -595,25 +595,47 @@ salary.diff.df <- nba %>%
 #   theme(legend.position = "none")
 
 # cleaner plot
+# salary.diff.df %>% 
+#   ggplot(aes(y = reorder(Player, Salary_diff), x = Salary_diff,
+#              color = Salary_diff, labels = Label)) +
+#   geom_segment(aes(xend = -11,
+#                    yend = seq_along(Player)),
+#                color = salary.diff.df$Color,
+#                size = 0.3) +
+#   geom_text(aes(x = -15,
+#                 label = Label),
+#                 color = "grey50",
+#             size = 3) +
+#   geom_point() +
+#   geom_vline(xintercept = 0,
+#              linetype = "dashed",
+#              color = "grey90") +
+#   scale_y_discrete(breaks = NULL) +
+#   scale_x_continuous(labels = scales::dollar) +
+#   scale_color_gradient2(mid = "grey80", high = "green") +
+#   coord_cartesian(ylim = c(-20, 500)) +
+#   labs(title = "Finding underpaid players based on cluster membership",
+#        subtitle = "Difference between player salary and respective cluster mean salary",
+#        y = "",
+#        x = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
+#   theme_minimal() +
+#   theme(legend.position = "none",
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank())
+
+
 salary.diff.df %>% 
   ggplot(aes(y = reorder(Player, Salary_diff), x = Salary_diff,
              color = Salary_diff, labels = Label)) +
-  geom_segment(aes(xend = -11,
-                   yend = seq_along(Player)),
-               color = salary.diff.df$Color,
-               size = 0.3) +
-  geom_text(aes(x = -15,
-                label = Label),
-                color = "grey50",
-            size = 3) +
+  geom_label_repel(aes(label = Label)) +
   geom_point() +
   geom_vline(xintercept = 0,
              linetype = "dashed",
-             color = "grey90") +
+             color = "grey70") +
   scale_y_discrete(breaks = NULL) +
-  # scale_y_discrete(breaks = salary.diff.df$Label) +
   scale_x_continuous(labels = scales::dollar) +
-  scale_color_gradient2(mid = "grey80", high = "green") +
+  scale_color_gradient2(mid = "grey80", high = "green4") +
+  coord_cartesian(ylim = c(-20, 500)) +
   labs(title = "Finding underpaid players based on cluster membership",
        subtitle = "Difference between player salary and respective cluster mean salary",
        y = "",
