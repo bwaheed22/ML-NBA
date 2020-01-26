@@ -1,16 +1,8 @@
 ---
 title: 'ML Final Project: Analysis'
-author: "Andrew Pagtakhan, Joe Marlo, Bilal Waheed, George Perrett"
-date: "January 20, 2020"
+author: "Joe Marlo, Andrew Pagtakhan, George Perrett, Bilal Waheed"
+date: "January 27, 2020"
 output: pdf_document
-output:
-  pdf_document:
-    code_folding: show
-    highlight: tango
-    theme: cosmo
-    toc: yes
-    toc_depth: 3
-    number_section: true
 ---
 
 # INTRO AND DATA DESCRIPTION
@@ -71,7 +63,7 @@ Steps:
 * Scaled/Transformed data using cube root and standardizing. For model-based clustering, various transformations such as Log + 1, square root, cube root, and Box-Cox were applied. The cube root yielded the best transformation to normalize the data. This was validated using QQ plots. We scaled the data for Hierarchical and K-Means to put all features on an equally weighted basis. For example, minutes played per game vs. blocks per game are on different ranges, so scaling these puts them on a comparable basis.
 
 ## Group Member Roles
-We all collaboratively contributed to the project in all aspects. Specifically, Joe contributed to scraping the player salary, additional player features and visualizations. Andrew contributed to cleaning the data and the hierarchical/K-means models. Bilal contributed to the hierarchical/K-Means modeling and the write-up. George contributed to the model-based clustering and data transformation.
+We all collaboratively contributed to the project in all aspects. Specifically, Joe contributed to scraping the player salary, additional player features and visualizations. Andrew contributed to cleaning the data, hierarchical/K-means models, and post-cluster analysis. Bilal contributed to the hierarchical/K-Means modeling and the write-up. George contributed to the model-based clustering and data transformation.
 
 # Analysis
 
@@ -189,6 +181,8 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
                         box.padding   = 0.35, 
                         point.padding = 0.5,
                         segment.color = 'grey50') + 
+    ## This is supposed to override the autoplot legend title.
+    ## Only works when plotting PCA directly. Does not work for HCL and KM objects
     labs(colour = leg_title)
         # theme_classic()
   return(p)
