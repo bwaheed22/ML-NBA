@@ -556,6 +556,8 @@ players_cl_four <- c("Devin Booker", "Zach LaVine", "Joel Embiid",
 
 players.to.show <- c(players_cl_one[1], players_cl_two[1],
                  players_cl_three[1], players_cl_four[1])
+
+players.to.show <- c("Harrison Barnes", "Trey Lyles", "James Johnson")
 ```
 
 
@@ -567,51 +569,59 @@ salary.diff.df <- nba %>%
   ungroup() %>%
   mutate(Salary_diff = (Clust_Salary - Salary) / 1000000,
          Player = as.character(Player),
-         Label = if_else(Player %in% players.to.show, Player, "")) %>% 
+         Show = Player %in% players.to.show,
+         Label = if_else(Show, paste0(Player, ", Cluster ", km_labs_four), ""),
+         Color = if_else(Show, "grey80", NULL)) %>% 
   arrange(Salary_diff)
 
 # plot it
-salary.diff.df %>% 
-  ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff,
-             color = Salary_diff, labels = Label)) +
-  geom_point() +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             color = "grey40") +
-  scale_x_discrete(breaks = salary.diff.df$Label) +
-  # scale_x_discrete(labels = salary.diff.df$Label) +
-  scale_y_continuous(labels = scales::dollar) +
-  scale_color_gradient2(mid = "grey80", high = "green") +
-  labs(title = "Finding underpaid players based on cluster membership",
-       subtitle = "Difference between player salary and respective cluster mean salary",
-       x = "",
-       y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
-  coord_flip() +
-  theme_minimal() +
-  theme(legend.position = "none")
+# salary.diff.df %>% 
+#   ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff,
+#              color = Salary_diff, labels = Label)) +
+#   geom_point() +
+#   geom_hline(yintercept = 0,
+#              linetype = "dashed",
+#              color = "grey40") +
+#   scale_x_discrete(breaks = salary.diff.df$Label) +
+#   # scale_x_discrete(labels = salary.diff.df$Label) +
+#   scale_y_continuous(labels = scales::dollar) +
+#   scale_color_gradient2(mid = "grey80", high = "green") +
+#   labs(title = "Finding underpaid players based on cluster membership",
+#        subtitle = "Difference between player salary and respective cluster mean salary",
+#        x = "",
+#        y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
+#   coord_flip() +
+#   theme_minimal() +
+#   theme(legend.position = "none")
 
-# 
-nba %>%
-  group_by(km_labs_four) %>%
-  mutate(Clust_Salary = mean(Salary)) %>%
-  ungroup() %>%
-  mutate(Salary_diff = (Clust_Salary - Salary) / 1000000) %>%
-  ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff, color = Salary_diff)) +
+# cleaner plot
+salary.diff.df %>% 
+  ggplot(aes(y = reorder(Player, Salary_diff), x = Salary_diff,
+             color = Salary_diff, labels = Label)) +
+  geom_segment(aes(xend = -11,
+                   yend = seq_along(Player)),
+               color = salary.diff.df$Color,
+               size = 0.3) +
+  geom_text(aes(x = -15,
+                label = Label),
+                color = "grey50",
+            size = 3) +
   geom_point() +
-  geom_hline(yintercept = 0,
+  geom_vline(xintercept = 0,
              linetype = "dashed",
-             color = "grey40") +
-  scale_x_discrete(breaks = function(x) x[c(TRUE, rep(FALSE, 40 - 1))]) +
-  scale_y_continuous(labels = scales::dollar) +
+             color = "grey90") +
+  scale_y_discrete(breaks = NULL) +
+  # scale_y_discrete(breaks = salary.diff.df$Label) +
+  scale_x_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green") +
   labs(title = "Finding underpaid players based on cluster membership",
        subtitle = "Difference between player salary and respective cluster mean salary",
-       x = "",
-       y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
-  coord_flip() +
+       y = "",
+       x = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
   theme_minimal() +
-  theme(legend.position = "none") +
-  facet_grid(km_labs_four~.)
+  theme(legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
 ```
 
