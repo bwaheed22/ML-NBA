@@ -534,16 +534,7 @@ There is potential to update salaries based on player tiers. For example, Chandl
 ## George to break out chart by cluster ##
 
 ```{r include=FALSE}
-<<<<<<< HEAD
 # create list of players to highlight on the player salary diff plot
-#anDREW/GEORGE to set the names to keep
-players.to.show <- c("LeBron James", "Carmelo Anthony", "Gerald Henderson",
-                     "Taurean Waller-Prince", "Shelvin Mack", "Devin Booker",
-                     as.character(sample(nba$Player[seq(2, 486, 6)], 10)))
-=======
-#JOE TO FIX THIS
-players.to.show <- as.character(nba$Player)
-
 players_cl_one <- c("Chandler Parsons", "Miles Plumlee", "Mirza Teletovic", 
                     "Al Jefferson", "Alec Burks", "Omri Casspi", 
                     "Jose Calderon", "Fred VanVleet", "Patrick McCaw",
@@ -563,10 +554,8 @@ players_cl_four <- c("Devin Booker", "Zach LaVine", "Joel Embiid",
                      "Mike Conley", "Carmelo Anthony", "Brook Lopez", 
                      "Derrick Rose")
 
-player.list <- c(players_cl_one, players_cl_two,
-                 players_cl_three, players_cl_four)
-players.to.show[!(players.to.show %in% player.list)] <- ""
->>>>>>> b229e3f697e2aa57de09838ef0dd7be00be27515
+players.to.show <- c(players_cl_one[1], players_cl_two[1],
+                 players_cl_three[1], players_cl_four[1])
 ```
 
 
@@ -594,7 +583,7 @@ salary.diff.df %>%
   scale_y_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green") +
   labs(title = "Finding underpaid players based on cluster membership",
-       subtitle = "Difference between player salary and respective cluster mean",
+       subtitle = "Difference between player salary and respective cluster mean salary",
        x = "",
        y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
   coord_flip() +
@@ -616,7 +605,7 @@ nba %>%
   scale_y_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green") +
   labs(title = "Finding underpaid players based on cluster membership",
-       subtitle = "Difference between player salary and respective cluster mean",
+       subtitle = "Difference between player salary and respective cluster mean salary",
        x = "",
        y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
   coord_flip() +
