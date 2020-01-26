@@ -73,7 +73,6 @@ We all collaboratively contributed to the project in all aspects. Specifically, 
 ## Exploratory Data Analysis
 
 ```{r setup, include=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
-library(tidyverse)
 library(dendextend)
 library(factoextra)
 library(GGally)
@@ -83,7 +82,9 @@ library(gridExtra)
 library(knitr)
 library(mclust)
 library(NbClust)
+library(plyr)
 library(rgl)
+library(tidyverse)
 
 # set for reproducible results
 set.seed(14)
@@ -550,8 +551,10 @@ nba_km_avg %>%
 We will now look at different statistics and demographics to assess cluster membership and draw insights.
 
 ```{r}
-### Star, Role, Bench, Low Performer
-
+# Map cluster labels to KM values
+nba$km_labs_opt_names <- mapvalues(nba$km_labs_four,
+                             from = c(1, 2, 3, 4),
+                             to = c('Subpar', 'Bench', 'Role', 'Star'))
 ```
 
 There is potential to update salaries based on player tiers. For example, Chandler Parsons was paid 22M but is considered a low performer, and is paid more than star players such as Steph Curry (12M) and Kawhi Leonard (17.6M). This shows that salary is not necessarily strongly correlated with player performance.
@@ -563,7 +566,7 @@ There is potential to update salaries based on player tiers. For example, Chandl
 nba$km_labs_opt <- nba$km_labs_four
 
 # cluster label to use
-cl_label <- "km_labs_four"
+cl_label <- "km_labs_opt_names"
 
 # plot PER vs. salary
 ggplot(data = nba, aes(x = Salary, y = PER)) + 
@@ -583,9 +586,10 @@ ggplot(data = nba, aes(x = Salary, y = PER)) +
 kable(head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, 
                       Salary, PER, cl_label)
-           %>% filter(km_labs_four == 1)
+           %>% filter(km_labs_opt_names == 'Subpar')
            %>% arrange(desc(Salary))
-           )), caption = 'Highest Paid Players: Lower Performances')
+           )), 
+      caption = 'Highest Paid Players: Subpar')
 
 ```
 
@@ -593,9 +597,10 @@ kable(head(data.frame(nba
 # Lowest Paid players in highest tier
 kable(head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, Salary, PER, cl_label)
-           %>% filter(km_labs_four == 4)
+           %>% filter(km_labs_opt_names == 'Star')
            %>% arrange(Salary)
-           )), caption = 'Lowest Paid Players: Star Players')
+           )), 
+      caption = 'Lowest Paid Players: Star Players')
 
 ```
 
@@ -616,7 +621,7 @@ salary.diff.df <- nba %>%
   mutate(Salary_diff = (Clust_Salary - Salary) / 1000000,
          Player = as.character(Player),
          Show = Player %in% players.to.show,
-         Label = if_else(Show, paste0(Player, ", Cluster ", km_labs_four), ""),
+         Label = if_else(Show, paste0(Player, ": ", km_labs_opt_names), ""),
          Color = if_else(Show, "grey80", NULL)) %>% 
   arrange(Salary_diff)
 
@@ -689,12 +694,17 @@ teams_sample <- c('NYK', 'GSW', 'BOS')
 
 teams_sample_list <- list(rep(NA, length = length(teams_sample)))
 for (i in seq_along(teams_sample)) {
-  teams_sample_list[[i]] <- nba[nba$Tm == teams_sample[i], 
-                                c('Player', 'PER', cl_label)]
+  teams_sample_list[[i]] <- nba %>% 
+    filter(Tm == teams_sample[i]) %>%
+    arrange(desc(km_labs_four)) %>%
+    select(Player, PER, cl_label)
 }
 
 # change index to see different teams
-teams_sample_list[[2]]
+team_index <- 2
+team_sample <- data.frame(teams_sample_list[team_index])
+colnames(team_sample) <- c('Player', 'PER', 'Cluster')
+kable(team_sample, caption = paste0(teams_sample[team_index], ': Players'))
 ```
 
 
