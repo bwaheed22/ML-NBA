@@ -3,9 +3,81 @@ title: 'ML Final Project: Analysis'
 author: "Andrew Pagtakhan, Joe Marlo, Bilal Waheed, George Perrett"
 date: "January 20, 2020"
 output: pdf_document
+output:
+  pdf_document:
+    code_folding: show
+    highlight: tango
+    theme: cosmo
+    toc: yes
+    toc_depth: 3
+    number_section: true
 ---
 
-```{r setup, include=FALSE, echo=TRUE, message=FALSE, warning=FALSE}
+# INTRO AND DATA DESCRIPTION
+
+## Research Question: Are there underlying patterns of groupings between NBA team compensation vs. overall team skillsets?
+
+The project is an unsupervised approach to discover underlying patterns or groupings between NBA compensation vs. overall team skillsets. It uses K-means, hierarchical, and model-based clustering along with other techniques and tools such as principal component analysis, standardizing, scaling, and web-scraping.
+
+The data includes NBA statistics for over 3,000 players, 60+ seasons, and over 50 features per players
+Measurement Scales: Numerical totals and percentages for features such as: points, assists, rebounds, player attributes (height, weight, college attended, etc.)
+Time period: 1950 - 2017 (through 2016 - 2017 season). We are selecting data for the 2016 - 2017 season.
+
+Key Feature Set: 
+MP_pg: Minutes played per game
+FG_pg: Field goals made per game
+FGA_pg: Field goal attempts per game
+3P_pg: 3-point shots made per game
+3PA_pg 3-points shot attempts per game
+2P_pg: 2-point shots made per game
+2PA_pg: 2-point shots attempted per game
+FT_pg: Free throw shots made per game
+FTA_pg: Free throw shots attempted per game
+TRB_pg: Total rebounds (offensive + defensive) per game
+AST_pg: Total assists per game
+STL_pg: Total steals per game
+BLK_pg: Total blocks per game
+PTS_pg: Total points made per game
+
+
+Additional Features:
+win_pct: team winning percentage during the regular seasong (Total wins / total games played) 
+Player: First and last name of NBA player
+Team: NBA team player played on. For multiple teams, this is the team the player played on for the most minutes 
+Position: NBA position, e.g. C = Center, PF = Power Forward, SG = Shooting Guard,  PG = Point Guard
+Salary: Player salary (USD)
+RPM: Real Plus/Minus. Player's average impact in terms of net point differential per 100 offensive and defensive possessions
+VORP: Value Over Replacement Player. Measure to estimate each player’s overall contribution to the team
+PER: Player Efficiency Rating. Measures player's overall contributions across different statistics.
+
+
+Source: https://www.kaggle.com/drgilermo/nba-players-stats#player_data.cs
+
+# Analysis Methods
+For this analysis, we applied the following modeling techniques to analysze NBA player data:
+* Principal Component Analysis
+* Hierarchical Clustering
+* K-Means
+* Model-Based clustering
+
+# DATA EXPLORATION AND TRANSFORMATION
+
+The data cleaning was done in separate R scripts. 
+https://github.com/joemarlo/ML-NBA
+Steps:
+* Filtered data to the 2016 - 2017 season
+* Assigned player to one team based on the most minutes he played for, including stats across all teams played for
+* Scraped player salaries and RPM data from ESPN website, using fuzzy matching on player names to join to the main dataset
+* Scaled/Transformed data using cube root and standardizing. For model-based clustering, various transformations such as Log + 1, square root, cube root, and Box-Cox were applied. The cube root yielded the best transformation to normalize the data. This was validated using QQ plots. We scaled the data for Hierarchical and K-Means to put all features on an equally weighted basis. For example, minutes played per game vs. blocks per game are on different ranges, so scaling these puts them on a comparable basis.
+
+## Group Member Roles
+We all collaboratively contributed to the project in all aspects. Specifically, Joe contributed to scraping the player salary, additional player features and visualizations. Andrew contributed to cleaning the data and the hierarchical/K-means models. Bilal contributed to the hierarchical/K-Means modeling and the write-up. George contributed to the model-based clustering and data transformation.
+
+# Analysis
+
+## Exploratory Data Analysis
+
+```{r setup, include=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dendextend)
 library(factoextra)
@@ -34,29 +106,17 @@ opts_knit$set(root.dir = normalizePath('..'))
 filename <- 'Data/season_stats_clean.csv'
 ```
 
-# Research Question: Are there underlying patterns of groupings between NBA team compensation vs. overall team skillsets?
+We decided to use the 14 features in our analysis (on a per game basis) because they provide a good balance of offensive (e.g Pts, Ast) and defensive stats (e.g. Reb, Blk). This is more likely to provide more balanced groupings between those who are more offensive and those who are better at defense.
 
-## Data Cleaning
-The data cleaning was done in separate R scripts. 
-https://github.com/joemarlo/ML-NBA
-Steps:
-* Filtered data to the 2016 - 2017 season
-* Assigned player to one team based on the most minutes he played for, including stats across all teams played for
-* Scraped player salaries and RPM data from ESPN website, using fuzzy matching on player names to join to the main dataset
-* Scaled/Transformed data using cube root (shown below)
+With these features, we will explore the distribution of each future.
 
-## Exploratory Data analysis
 ```{r}
 # load data
 nba <- read.csv(filename)
-```
-
-```{r}
 # replace NA values in RPM column with 0s
 nba$RPM[is.na(nba$RPM)] <- 0
 ```
 
-We decided to use the 14 features in our analysis (on a per game basis) because they provide a good balance of offensive (e.g Pts, Ast) and defensive stats (e.g. Reb, Blk). Additionally, advanced statistics such as VORP and PER utilize a combination of these 'base' statistics in their calculations. So, by using these base statistics between offensive and defensive metrics, this is more likely to provide more balanced groupings between those who are more offensive and those who are better at defense.
 ```{r echo=FALSE}
 
 # plot distributions of key per game stats
@@ -72,11 +132,14 @@ nba_feat %>%
        x = '')
 ```
 
+We calculate the variance to look at the spread of each feature.
 
-Variance was calculated to determine if we need to scale the data
 ```{r}
 # calculate variance
-round(apply(nba_feat, MARGIN = 2, FUN = var), 2)
+var_table <- round(apply(nba_feat, MARGIN = 2, FUN = var), 2)
+var_df <- data.frame(var_table)
+colnames(var_df) <- 'Variance'
+kable(var_df, caption = 'Feature Variance')
 ```
 
 
@@ -93,19 +156,17 @@ ggpairs(nba_feat_plot_pos,
 )
 ```
 
-Most of the features such as points and assists look like they exhibit a negative binomial distribution. If we look at the pairs plot, it looks like there are clear groupings by position.
 
+We then scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game - most players will have more minutes per game than blocks per game.
 
-## Run PCA to inspect if there are any groupings
+## Run Principal Component Analysis
 
-Before running any clustering algorithms, we will perform Principal Component Analysis to determine if there are any potential clusters. We first scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game - Most players will have more minutes per game than blocks per game.
+Before running any clustering algorithms, we will perform Principal Component Analysis to determine if there are any inherent groupings among players.
 
 ```{r}
 nba_feat_sc <- scale(nba_feat)
 
 # run PCA
-# princomp() uses spectral decomposition
-# prcomp() uses singular value decomposition
 nba_pca <- prcomp(nba_feat_sc)
 summary(nba_pca)
 ```
@@ -113,7 +174,7 @@ summary(nba_pca)
 ```{r}
 # create plot PCA data function
 plot_pca <- function(object, frame = FALSE, x = 1, y = 2, 
-                     data, colour, title, label) {
+                     data, colour, title, label, leg_title) {
   # plots data in PCA space 
   # object = PCA or K-Means object
   # x = which PC for x-axis (1, 2, ,3, etc..)
@@ -127,14 +188,17 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
         geom_label_repel(aes(label = label),
                         box.padding   = 0.35, 
                         point.padding = 0.5,
-                        segment.color = 'grey50') 
+                        segment.color = 'grey50') + 
+    labs(colour = leg_title)
         # theme_classic()
   return(p)
 }
 ```
 
 
-Since 2 components make up 83% of the cumulative variance, we will plot these
+The first 2 principal components explain the majority of the variance in the feature set, we will plot the data in these two dimensions to better assess player similarities. 
+
+At first glance, there are differences between players based on overall statistics. For example, LeBron James and James Harden are near each other, indicating star players may be grouped together. There are also similarities based on player position. For example, Centers/Power Forwards such as Anthony Davis and Karl-Anthony Towns are in the bottom of the chart.
 
 ```{r}
 # Labels: Players who played more than 36 min per game or less than 3 min per game
@@ -144,7 +208,7 @@ title_pca <- paste0('PCA: NBA - ', ncol(nba_feat) ,' features')
 
 # Plot first two components with positions
 plot_pca(nba_pca, data = nba, colour = 'Pos', 
-         label = labels_pca, title = title_pca
+         label = labels_pca, title = title_pca, leg_title = 'Position'
           )
 ```
 
@@ -155,9 +219,6 @@ pca_plot <- nba_pca$x[ , 1:3]
 plot3d(pca_plot)
 ```
 
-
-_Observations_
-Based on the PCA plot, it looks like there are natural grouping based on position from the colors coding. For example, the centers are on the bottom diagonal, point guards are near the top, and SF/PFs are in the middle. It is also noticable that the stars and superstars are on the right-side of the cluster. Since this looks like a fan, we can also say that the stars are placed more towards the 'tips' of the fan. So, we will hypothesize that there may also be clusters from left to right, where the right-most are the top players, and the left side are the lower performing players.
 
 ## Clustering
 
@@ -173,7 +234,10 @@ hcl_centroid <- hclust(d = nba_dist_sc, method = 'centroid')
 hcl_ward <-  hclust(d = nba_dist_sc, method = 'ward.D2')
 ```
 
-```{r}
+
+### ADJUST WIDTH for PLOTS
+```{r, fig.align = "center", fig.width=6, fig.height=7}
+par(mfrow = c(3, 1))
 # nearest neighbors method
 plot(hcl_single, hang = -1, main = 'Single Linkage', 
      labels = FALSE, xlab = '', sub = '')
@@ -185,30 +249,33 @@ plot(hcl_centroid, hang = -1, main = 'Centroid Linkage',
 dend <- as.dendrogram(hcl_ward)
 hcl_k <- 4
 dend_col <- color_branches(dend, k = hcl_k)
-plot(dend_col, main = paste0('Ward (D2) Linkage: K = ', hcl_k))
+plot(dend_col, main = paste0('Ward (D2) Linkage: K = ', hcl_k), 
+     labels = FALSE)
 ```
 
-Since the Ward dendrogram seems to be the best among the three, we will look at its distribution for 3 and 4 clusters. We chose these initial groupings because this is a good number of initial clusters to group NBA players.
+
+Since the Ward dendrogram seems to be the best among the three, we will look at its distribution for 3 and 4 clusters. We chose these initial groupings because this provides a good start to separate and distinguish between player groups.
+
 ```{r}
 # add cluster labels to main data
 nba$hcl_ward_labs_three <- cutree(hcl_ward, k = 3)
 nba$hcl_ward_labs_four <- cutree(hcl_ward, k = 4)
 
-# plot frequencies
-p_one <- ggplot(data = nba, aes(x = hcl_ward_labs_three)) + 
-          geom_bar(fill = 'lightblue') + 
-          ggtitle('Number of Players by Cluster: K = 3') + 
-          xlab('Cluster')
-p_two <- ggplot(data = nba, aes(x = hcl_ward_labs_four)) + 
-          geom_bar(fill = 'lightblue') + 
-          ggtitle('Number of Players by Cluster: K = 4') + 
-          xlab('Cluster')
+hcl_df_three <- data.frame(table(nba$hcl_ward_labs_three))
+hcl_df_four <- data.frame(table(nba$hcl_ward_labs_four))
+col_names <- c('Clusters', 'Count')
+colnames(hcl_df_three) <- col_names
+colnames(hcl_df_four) <- col_names
 
-# combine
-cowplot::plot_grid(p_one, p_two, nrow = 2)
+
+print(kable(hcl_df_three, caption = 'Three Clusters'))
+print(kable(hcl_df_four, caption = 'Four Clusters'))
+
 ```
 
-Visualizing clusters in PCA space
+
+Visualizing the clusters in PC space, we see clear separation in the 4-cluster solution vs the 3-cluster method based on apparent skillsets. For example, LeBron James and James Harden (star players) are in one cluster, whereas John Lucas and Danuel House (lower performers) are in the left-most cluster, opposite to the 'star player' cluster on the right. These will be explored further when we look at player statistics by cluster.
+
 ```{r}
 # add labels to data
 nba$hcl_ward_three <- factor(cutree(hcl_ward, k = 3))
@@ -229,7 +296,8 @@ for (i in seq_along(hcl_labs)) {
   p <- plot_pca(nba_pca, frame = TRUE, 
                 data = nba, colour = hcl_labs[i],
                 title = paste0('PCA: ', hcl_ks[i], ' clusters (Hclust)'),
-                label = hcl_labels
+                label = hcl_labels,
+                leg_title = 'Clusters'
   )
 
   print(p)
@@ -246,12 +314,15 @@ plot3d(pca_plot,
 ```
 
 
-Visually, it looks like the four cluster solution may be able to give us more actionable insights vs the 3-cluster method. The average stats by cluster shows pretty clear separation among the groups. Group 4 are the stars, followed by group 2, 3, and then 4. The main difference between groups 2 and 3 is that group 2 looks to contain more players who tend to have more rebound and blocks per game.
-
 
 ### Optimize number of clusters
 
-Methods: Calinski-Harabasz index and Scott
+To optimize the number of clusters, we used two index methods: Calinski-Harabasz and Silhouette. These methods measure how well separated clusters are, and how homogenous data is within each cluster. Both indices yield 2 as the optimal number.
+
+Although the indices say 2 is optimal, these does not provide enough distinction or separation among players. 
+However, the Silhouette index provides 4 as a local maximum. This provides a more practical distinction among players.
+
+Methods: Calinski-Harabasz index and Silhouette
 ```{r}
 
 # get optimal cluster sizes 
@@ -286,11 +357,11 @@ plot(names(cluster_sizes_hcl$All.index),
 ```
 
 
-Among the different hierarchical clustering methods, the Ward method seems to be the best. The dendogram looks the most structured and the distribution of players in each cluster is more balanced. Hierarchical clustering could seem like a potential fit if we want the better players to be in a more 'select' group. Although the CH index indicates 2 clusters is optimal, we need to look at the practicality as well. 3 clusters may hav differences between groups of players. But, it is possible that NBA front offices will likely need more differentation when grouping player performance. Looking at the 4 cluster solutions and stats, the blue cluster tends to have more players who rebound, block more shots and tend to be more efficient (based on PER). So, these clusters seem to have decent separation from each other. We will now try K-Means clustering too see if that works better.
-
-### K-Means
+## K-Means
 
 ### Optimize number of clusters
+
+Similar to the optimization for hierarhical, we found similar results for K-Means. We decided with the 4-cluster solution based on the Silhouette index (local maximum.)
 
 Method: Calinski-Harabasz index
 ```{r}
@@ -328,7 +399,6 @@ plot(names(cluster_sizes_km$All.index),
 
 ```
 
-The optimization methods tell us that 2 clusters is best, but we will need more groups for meaningful and interesting separation among players. The silhouette index shows that there is a distinct drop off after 4 clusters.
 
 ### K-means clustering with 4 groups
 ```{r}
@@ -338,11 +408,9 @@ km_four <- kmeans(x = nba_feat_sc,
             nstart = 100,
             algorithm = 'Hartigan-Wong')
 
-```
-
-```{r}
 nba$km_labs_four <- factor(km_four$cluster)
 ```
+
 
 
 ```{r echo=FALSE}
@@ -353,6 +421,8 @@ nba$km_labs_four <- factor(ifelse(nba$km_labs_four == 4, 3,
 
 ```
 
+Compared to the hierarchical solution presented earlier, there is cleaner separation in the K-Means plot. We will see how these clusters are separated by inspecting features within each group.
+
 ```{r}
 # plot k-means clusters in PC space
 # Labels: Players who played more than 36 min per game or less than 3 min per game
@@ -361,24 +431,21 @@ km_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3,
 
 plot_pca(km_five, data = nba, frame = TRUE, colour = 'km_labs_four',
           title = paste0('PCA: ', km_k, ' clusters (K-means)'),
-          label = km_labels)
+          label = km_labels, leg_title = 'Clusters')
 ```
 
-There is clean separation in the 4-cluster plot. We will now see how these clusters are separated by inspecting features within each group.
+One explanation for the imbalanced number of players across clusters is that player skillset level is inherently imbalanced. This imbalance is reflected in the univariate plots, where most densities were positively skewed. This suggests that there a few players whose statistics significantly exceed those of the average player. This is also reflected in the average statistics by cluster shown below.
 
 ```{r echo=FALSE}
 # get distribution of players in each cluster
-ggplot(data = nba, 
-       aes(x = km_labs_four)) + 
-       geom_bar(fill = 'lightblue') + 
-       ggtitle('HCL: K = 4')
+km_labs <- data.frame(table(nba$km_labs_four))
+colnames(km_labs) <- col_names
+
+kable(km_labs, caption = 'K-Means Player Distribution')
 
 ```
 
 
-### Describe why distribution is not balanced ###
-
-It looks like the clusters are somewhat interpretable. Clusters to the right seem to indicate star players, while clusters to the left indicate lower performing players. However, the question becomes if 5 clusters is meaningful. Based on the averages for each cluster, there is not much difference between clusters 2 and 4. Additionally, it looks like there is room to better balance the number of players in each cluster and create more separation between clusters.
 
 ```{r}
 # averages by cluster
@@ -388,18 +455,15 @@ nba_km_avg <- data.frame(nba
                             %>% group_by(km_labs_four)
                             %>% summarise_all(list(mean))
                             )
-nba_km_avg
+
+kable(nba_km_avg, caption = 'Average Stats by Cluster')
 ```
 
 
-
-_Observations_
-Although the CH index indicates that the optimal number of clusters is 2, this seems too low of a number to meaningfully break out the NBA players into groups. It is also important to note that the CH index is a heuristic method. So although CH is a good approach to look for the number of clusters, it is important to combine this with our practical goal of looking for underlying patterns in the players. Thus, I think a more reasonable number to understand the data is with 3 - 4 clusters, which show the second and third best partitions based on the CH index. We will look at both and determine which one is a better fit for our goal.
-
-
-Based on the plot, cluster distributions, and group averages, it looks like 4 clusters is optimal. One main reason is that there is more separation vs 4 clusters, which can provide more value when bucketing players by overall skillsets. Across the statistics, it looks like the clusters are broken out into the following: Best players (2), Good players with more assists, i.e. guards (1), good players who rebound and block more, .e.g forwards (4), and Low-performing players (3). We will now try model-based clustering as a third method.
-
 ### Model-Based Clustering
+
+To test alternative approaches to Hierarchical and K-Means clustering, we will perform model-based clustering.
+Prior to modeling, we will transform the data using the cube root. This normalizes the data, which is a key assumption in model-based clustering. We tested other transformations such as the square root, Box-Cox, and log + 1. Of these, The cube root yielded the best transformation for model-based clustering.
 
 ```{r}
 # transform features
@@ -421,6 +485,7 @@ nba_feat_cr_sc %>% as_tibble() %>%
 
 ```
 
+The model-based clustering produced a five-cluster solution based on the BIC. Compared to the previous methods, model-based clustering tended to group players by moreseo by style of play. On the other hand, K-Means and Hierarchical appear to cluster on overall skillsets across statistics. The clusters also align more with the original PCA plot by position. This type of clustering suggests emphasis on style of play, e.g. better rebounders/blockers, better passers, scorers, etc.
 
 ```{r}
 # run model
@@ -445,7 +510,12 @@ nba$mcl_labs <- player_clust.mcl$classification
 
 ### Compare methods between Clusters
 
-We will now compare crosstab solutions
+Between HCL and KM, the maximum possible agreement between clusters is 87% (424 / 486).
+Between HCL and MCL, the maximum possible agreement between clusters is 30% (148 / 486).
+Between KM and MCL, the maximum possible agreement between clusters is 41% (201 / 486).
+
+Based on the analysis, MCL tends to group players by position, whereas HCL and KM tend to cluster based on overall player statistics. This conclusion was reached based on inspecting distributions of player positions across the clustering methods. Because we are looking at player statistics and team compensation, the model-based clustering is not an ideal fit for this purpose.
+
 
 ```{r}
 # run crosstabs between cluster methods
@@ -458,16 +528,10 @@ xtab_hcl_mcl
 xtab_km_mcl
 ```
 
-Between HCL and KM, the maximum possible agreement between clusters is 87% (424 / 486).
-Between HCL and MCL, the maximum possible agreement between clusters is 30% (148 / 486).
-Between KM and MCL, the maximum possible agreement between clusters is 41% (201 / 486).
-
-Based on the analysis, MCL tends to group players by position, whereas HCL and KM tend to cluster based on overall player statistics. This conclusion was reached based on inspecting distributions of player positions across the clustering methods. Because we are looking at player statistics and team compensation, the model-based clustering is not an ideal fit for this purpose.
-
 ## Final Cluster selection
 K-Means (4 clusters) was the optimal solution. Comparing the HCL and KM cluster plots (per above) reveals the K-Means produces clearer separation of players based on overall skillsets. 
 
-Inspection of clusters suggest that groupings separate players by skillsets. We validated this by comparing the clusters against advanced statistics. PER, VORP, and RPM are advanced statistics commonly used to assess general player performance. None of these statistics were used in the cluster modeling.
+We validated this by comparing the clusters against advanced statistics. PER, VORP, and RPM are advanced statistics commonly used to assess general player performance. None of these statistics were used in the cluster modeling.
 ```{r echo=FALSE}
 # plot averages by cluster
 nba_km_avg %>% 
@@ -486,12 +550,20 @@ nba_km_avg %>%
 
 ## Post-Cluster Analysis
 
-We will now look at different statistics and demographics to see how the clustering lines up
+We will now look at different statistics and demographics to assess cluster membership and draw insights.
 
+```{r}
+### Star, Role, Bench, Low Performer
+
+```
+
+There is potential to update salaries based on player tiers. For example, Chandler Parsons was paid 22M but is considered a low performer, and is paid more than star players such as Steph Curry (12M) and Kawhi Leonard (17.6M). This shows that salary is not necessarily strongly correlated with player performance.
 
 ### Clusters vs. Player Salaries
 ```{r echo=FALSE}
 # salary vs. advanced stats, overlayed with clusters
+
+nba$km_labs_opt <- nba$km_labs_four
 
 # cluster label to use
 cl_label <- "km_labs_four"
@@ -503,63 +575,41 @@ ggplot(data = nba, aes(x = Salary, y = PER)) +
                 box.padding   = 0.35, 
                 point.padding = 0.5,
                 segment.color = 'grey50') + 
-  ggtitle('PER vs. Salary') 
+  ggtitle('PER vs. Salary') + 
+  scale_x_continuous(labels = scales::dollar)
   # theme_classic()
 ```
 
 
 ```{r}
 # Highest Paid players in Lowest Tier
-head(data.frame(nba
+kable(head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, 
                       Salary, PER, cl_label)
            %>% filter(km_labs_four == 1)
            %>% arrange(desc(Salary))
-           ))
+           )), caption = 'Highest Paid Players: Lower Performances')
 
 ```
 
 ```{r}
 # Lowest Paid players in highest tier
-head(data.frame(nba
+kable(head(data.frame(nba
            %>% select(Player, G, MP_pg, Tm, Salary, PER, cl_label)
            %>% filter(km_labs_four == 4)
            %>% arrange(Salary)
-           ))
+           )), caption = 'Lowest Paid Players: Star Players')
 
 ```
 
 
-_Observations_
-There is potential to update salaries based on player tiers. For example, Chandler Parsons was paid 22M but is considered a low tier player, and is paid more than the high tier players such as Steph Curry (12M) and Kawhi Leonard (17.6M).
 
-## George to break out chart by cluster ##
+The chart below indicates how much a player is overpaid or underpaid with respect to their cluster average salary. For example, Chandler Parsons was paid 22M vs. the cluster salary average (~2M), indicating he was overpaid. It is important to note that there are players who may have been injured, so their statistics may not be commensurate to their salaries.
 
 ```{r echo=FALSE}
 # create list of players to highlight on the player salary diff plot
-players_cl_one <- c("Chandler Parsons", "Miles Plumlee", "Mirza Teletovic", 
-                    "Al Jefferson", "Alec Burks", "Omri Casspi", 
-                    "Jose Calderon", "Fred VanVleet", "Patrick McCaw",
-                    "Dorian Finney-Smith")
 
-players_cl_two <- c("Malcolm Brogdon", "Ty Lawson", "Marreese Speights", 
-                    "Seth Curry", "Will Barton", "Allen Crabbe", "Luol Deng", 
-                    "Kent Bazemore", "Jeff Green", "J.R. Smith")
-
-players_cl_three <- c("Montrezl Harrell", "Clint Capela", "Nikola Jokic", 
-                      "Rudy Gobert", "Willy Hernangomez", "Bismack Biyombo", 
-                      "Dwight Howard", "Joakim Noah", "Tristan Thompson", 
-                      "Timofey Mozgov")
-
-players_cl_four <- c("Devin Booker", "Zach LaVine", "Joel Embiid", 
-                     "Stephen Curry", "Isaiah Thomas", "LeBron James", 
-                     "Mike Conley", "Carmelo Anthony", "Brook Lopez", 
-                     "Derrick Rose")
-
-players.to.show <- c(players_cl_one[1], players_cl_two[1],
-                 players_cl_three[1], players_cl_four[1])
-
-players.to.show <- c("Al Horford", "Harrison Barnes", "Trey Lyles", "James Johnson", "Devin Booker")
+players.to.show <- c("Carmelo Anthony", "Chandler Parsons", "Trey Lyles", "James Johnson", "Devin Booker")
 
 # create data frame that includes the differnece in player salary and cluster avg salary
 salary.diff.df <- nba %>%
@@ -573,56 +623,6 @@ salary.diff.df <- nba %>%
          Color = if_else(Show, "grey80", NULL)) %>% 
   arrange(Salary_diff)
 
-# plot it
-# salary.diff.df %>% 
-#   ggplot(aes(x = reorder(Player, Salary_diff), y = Salary_diff,
-#              color = Salary_diff, labels = Label)) +
-#   geom_point() +
-#   geom_hline(yintercept = 0,
-#              linetype = "dashed",
-#              color = "grey40") +
-#   scale_x_discrete(breaks = salary.diff.df$Label) +
-#   # scale_x_discrete(labels = salary.diff.df$Label) +
-#   scale_y_continuous(labels = scales::dollar) +
-#   scale_color_gradient2(mid = "grey80", high = "green") +
-#   labs(title = "Finding underpaid players based on cluster membership",
-#        subtitle = "Difference between player salary and respective cluster mean salary",
-#        x = "",
-#        y = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
-#   coord_flip() +
-#   theme_minimal() +
-#   theme(legend.position = "none")
-
-# cleaner plot
-# salary.diff.df %>% 
-#   ggplot(aes(y = reorder(Player, Salary_diff), x = Salary_diff,
-#              color = Salary_diff, labels = Label)) +
-#   geom_segment(aes(xend = -11,
-#                    yend = seq_along(Player)),
-#                color = salary.diff.df$Color,
-#                size = 0.3) +
-#   geom_text(aes(x = -15,
-#                 label = Label),
-#                 color = "grey50",
-#             size = 3) +
-#   geom_point() +
-#   geom_vline(xintercept = 0,
-#              linetype = "dashed",
-#              color = "grey90") +
-#   scale_y_discrete(breaks = NULL) +
-#   scale_x_continuous(labels = scales::dollar) +
-#   scale_color_gradient2(mid = "grey80", high = "green") +
-#   coord_cartesian(ylim = c(-20, 500)) +
-#   labs(title = "Finding underpaid players based on cluster membership",
-#        subtitle = "Difference between player salary and respective cluster mean salary",
-#        y = "",
-#        x = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
-#   theme_minimal() +
-#   theme(legend.position = "none",
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank())
-
-
 salary.diff.df %>% 
   ggplot(aes(y = reorder(Player, Salary_diff), x = Salary_diff,
              color = Salary_diff, labels = Label)) +
@@ -635,7 +635,7 @@ salary.diff.df %>%
   scale_x_continuous(labels = scales::dollar) +
   scale_color_gradient2(mid = "grey80", high = "green4") +
   coord_cartesian(ylim = c(-20, 500)) +
-  labs(title = "Finding underpaid players based on cluster membership",
+  labs(title = "Finding Over/underpaid players based on cluster membership",
        subtitle = "Difference between player salary and respective cluster mean salary",
        y = "",
        x = "Difference between salary and cluster mean (in millions)\n Negative indicates overpaid") +
@@ -648,6 +648,7 @@ salary.diff.df %>%
 
 
 ### Team Compensation and Performance vs clusters
+
 
 ```{r}
 # convert labels to numeric
@@ -664,6 +665,9 @@ nba_team <- data.frame(nba
 arrange(nba_team, desc(avg_clust))
 ```
 
+Although a team can have better players on average clusters, there are many variables at play here. A team can be better on average but poor management or coaching can affect a team's overall performance, e.g. NYK. Interestingly, GSW did not have the highest average cluster rating, because their bench is not very strong. This speaks to the strong influence that starter players can have on team performance. Another interesting note is that teams can play well even if they do not have many all-stars or a strong overall team, e.g BOS. This could be driven by great coaching and team chemistry. It is important to note that items such as injuries could greatly influence win %, even if players have high ratings. 
+
+Although there is a correlation between overall team salary and win %, it is interesting that average player rating does not necessarily align with overall win %.
 
 ```{r echo=FALSE}
 # plot
@@ -673,7 +677,11 @@ ggplot(nba_team,
   geom_point() + 
   scale_x_continuous(labels = scales::dollar_format()) +
   geom_label_repel(label = nba_team$Tm) + 
-  ggtitle('Win % vs. Team Salary')  
+  scale_color_gradient2(low = 'red', 
+                        midpoint = mean(nba_team$avg_clust),
+                        mid = 'gray',
+                        high = 'green4') + 
+  labs(title = 'Win % vs. Team Salary')  
   # theme_classic()
 ```
 
@@ -693,7 +701,3 @@ teams_sample_list[[2]]
 ```
 
 
-_Observations_
-Although a team can have better players on average clusters, there are many variables at play here. A team can be better on average but poor management or coaching can affect a team's overall performance, e.g. NYK. Interestingly, GSW did not have the highest average cluster rating, because their bench is not very strong. This speaks to the strong influence that starter players can have on team performance. Another interesting note is that teams can play well even if they do not have many all-stars or a strong overall team, e.g BOS. This could be driven by great coaching and team chemistry. It is important to note that items such as injuries could greatly influence win %, even if players have high ratings. 
-
-Although there is a correlation between overall team salary and win %, it is interesting that average player rating does not necessarily align with overall win %.
