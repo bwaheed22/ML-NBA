@@ -5,7 +5,7 @@ date: "January 20, 2020"
 output: pdf_document
 ---
 
-```{r setup, include=TRUE, echo=TRUE, message=FALSE, warning=FALSE}
+```{r setup, include=FALSE, echo=TRUE, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dendextend)
 library(factoextra)
@@ -21,11 +21,13 @@ library(rgl)
 # set for reproducible results
 set.seed(14)
 
+# set theme for ggplot
+theme_set(theme_minimal())
+
 # clear variables
 rm(list = ls())
 
 # set working directory
-
 opts_knit$set(root.dir = normalizePath('..'))
 
 # define file name for analysis
@@ -55,7 +57,7 @@ nba$RPM[is.na(nba$RPM)] <- 0
 ```
 
 We decided to use the 14 features in our analysis (on a per game basis) because they provide a good balance of offensive (e.g Pts, Ast) and defensive stats (e.g. Reb, Blk). Additionally, advanced statistics such as VORP and PER utilize a combination of these 'base' statistics in their calculations. So, by using these base statistics between offensive and defensive metrics, this is more likely to provide more balanced groupings between those who are more offensive and those who are better at defense.
-```{r}
+```{r echo=FALSE}
 
 # plot distributions of key per game stats
 features_pg <- grep('_pg', names(nba), value = TRUE)
@@ -78,7 +80,7 @@ round(apply(nba_feat, MARGIN = 2, FUN = var), 2)
 ```
 
 
-```{r, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 # look at pairs plots for key stats
 feat_plot <- c('MP_pg', 'PTS_pg', 'AST_pg', 'TRB_pg', 
                'STL_pg', 'BLK_pg')
@@ -125,8 +127,8 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
         geom_label_repel(aes(label = label),
                         box.padding   = 0.35, 
                         point.padding = 0.5,
-                        segment.color = 'grey50') +
-        theme_classic()
+                        segment.color = 'grey50') 
+        # theme_classic()
   return(p)
 }
 ```
@@ -343,7 +345,7 @@ nba$km_labs_four <- factor(km_four$cluster)
 ```
 
 
-```{r include=FALSE}
+```{r echo=FALSE}
 # swap labels 3 and 4 so that label 4 are the best players
 nba$km_labs_four <- factor(ifelse(nba$km_labs_four == 4, 3, 
                           ifelse(nba$km_labs_four == 3, 4, 
@@ -364,7 +366,7 @@ plot_pca(km_five, data = nba, frame = TRUE, colour = 'km_labs_four',
 
 There is clean separation in the 4-cluster plot. We will now see how these clusters are separated by inspecting features within each group.
 
-```{r}
+```{r echo=FALSE}
 # get distribution of players in each cluster
 ggplot(data = nba, 
        aes(x = km_labs_four)) + 
@@ -407,7 +409,7 @@ nba_feat_cr_sc <- scale(nba_feat_cr)
 
 ```
 
-```{r}
+```{r echo=FALSE}
 # plot transformed variables
 nba_feat_cr_sc %>% as_tibble() %>%
   pivot_longer(cols = everything()) %>%
@@ -466,7 +468,7 @@ Based on the analysis, MCL tends to group players by position, whereas HCL and K
 K-Means (4 clusters) was the optimal solution. Comparing the HCL and KM cluster plots (per above) reveals the K-Means produces clearer separation of players based on overall skillsets. 
 
 Inspection of clusters suggest that groupings separate players by skillsets. We validated this by comparing the clusters against advanced statistics. PER, VORP, and RPM are advanced statistics commonly used to assess general player performance. None of these statistics were used in the cluster modeling.
-```{r}
+```{r echo=FALSE}
 # plot averages by cluster
 nba_km_avg %>% 
   select(km_labs_four, VORP, PER, RPM) %>% 
@@ -488,7 +490,7 @@ We will now look at different statistics and demographics to see how the cluster
 
 
 ### Clusters vs. Player Salaries
-```{r}
+```{r echo=FALSE}
 # salary vs. advanced stats, overlayed with clusters
 
 # cluster label to use
@@ -501,8 +503,8 @@ ggplot(data = nba, aes(x = Salary, y = PER)) +
                 box.padding   = 0.35, 
                 point.padding = 0.5,
                 segment.color = 'grey50') + 
-  ggtitle('PER vs. Salary') + 
-  theme_classic()
+  ggtitle('PER vs. Salary') 
+  # theme_classic()
 ```
 
 
@@ -533,7 +535,7 @@ There is potential to update salaries based on player tiers. For example, Chandl
 
 ## George to break out chart by cluster ##
 
-```{r include=FALSE}
+```{r echo=FALSE}
 # create list of players to highlight on the player salary diff plot
 players_cl_one <- c("Chandler Parsons", "Miles Plumlee", "Mirza Teletovic", 
                     "Al Jefferson", "Alec Burks", "Omri Casspi", 
@@ -558,10 +560,7 @@ players.to.show <- c(players_cl_one[1], players_cl_two[1],
                  players_cl_three[1], players_cl_four[1])
 
 players.to.show <- c("Al Horford", "Harrison Barnes", "Trey Lyles", "James Johnson", "Devin Booker")
-```
 
-
-```{r}
 # create data frame that includes the differnece in player salary and cluster avg salary
 salary.diff.df <- nba %>%
   group_by(km_labs_four) %>%
@@ -666,7 +665,7 @@ arrange(nba_team, desc(avg_clust))
 ```
 
 
-```{r}
+```{r echo=FALSE}
 # plot
 ggplot(nba_team, 
        aes(x = team_salary, y = win_pct, color = avg_clust)) + 
@@ -674,8 +673,8 @@ ggplot(nba_team,
   geom_point() + 
   scale_x_continuous(labels = scales::dollar_format()) +
   geom_label_repel(label = nba_team$Tm) + 
-  ggtitle('Win % vs. Team Salary') + 
-  theme_classic()
+  ggtitle('Win % vs. Team Salary')  
+  # theme_classic()
 ```
 
 
