@@ -18,7 +18,7 @@ knitr::opts_knit$set(root.dir = normalizePath('..'))
 
 # Resources for reproducing this project
 
-The repository containing the raw and cleaned data along with all code required to run the analyses can be found here: https://github.com/joemarlo/ML-NBA.  
+The repository containing the raw and cleaned data along with all code required to run the analyses can be found at https://github.com/joemarlo/ML-NBA.  
 
 The original source of the data can be found at these links:  
 
@@ -208,7 +208,7 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
 ```
 
 
-The first 2 principal components explain the majority of the variance in the feature set, we will plot the data in these two dimensions to better assess player similarities. 
+The first two principal components explain the majority of the variance in the feature set, we will plot the data in these two dimensions to better assess player similarities. 
 
 At first glance, there are differences between players based on overall statistics. For example, LeBron James and James Harden are near each other, indicating star players may be grouped together. There are also similarities based on player position. For example, Centers/Power Forwards such as Anthony Davis and Karl-Anthony Towns are in the bottom of the chart.
 
@@ -522,7 +522,7 @@ nba$mcl_labs <- player_clust.mcl$classification
 ```
 
 
-### Compare methods between clusters
+### Comparing methodologies
 
 Between HCL and KM, the maximum possible agreement between clusters is 87% (424 / 486).
 Between HCL and MCL, the maximum possible agreement between clusters is 30% (148 / 486).
@@ -606,12 +606,11 @@ nba %>%
   filter(km_labs_opt_names == 'Subpar') %>% 
   arrange(desc(Salary)) %>% 
   head() %>% 
-  kable(caption = 'Highest Paid Players: Subpar',
+  kable(caption = 'Highest Paid Players: Subpar Players',
         digits = 2,
         format.args = list(big.mark = ","),
         booktabs = TRUE) %>% 
     kable_styling(latex_options = c("striped"))
-
 ```
 
 ```{r}
@@ -626,7 +625,6 @@ nba %>%
         format.args = list(big.mark = ","),
               booktabs = TRUE) %>% 
     kable_styling(latex_options = c("striped"))
-
 ```
 
 
@@ -735,8 +733,10 @@ team_index <- 2
 team_sample <- data.frame(teams_sample_list[team_index])
 colnames(team_sample) <- c('Player', 'PER', 'Cluster')
 teams_sample_list[[2]] %>%
-  kable(booktabs = TRUE) %>% 
+  kable(caption = paste0(teams_sample[team_index], ': Players'),
+        booktabs = TRUE) %>% 
   kable_styling(latex_options = c("striped"))
+
 ```
 
 ## Final thoughts
