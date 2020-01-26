@@ -185,7 +185,7 @@ summary(nba_pca)
 ```{r}
 # create plot PCA data function
 plot_pca <- function(object, frame = FALSE, x = 1, y = 2, 
-                     data, colour, title, label, leg_title) {
+                     data, colour, title, label) {#, leg_title) {
   # plots data in PCA space 
   # object = PCA or K-Means object
   # x = which PC for x-axis (1, 2, ,3, etc..)
@@ -199,10 +199,10 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
         geom_label_repel(aes(label = label),
                         box.padding   = 0.35, 
                         point.padding = 0.5,
-                        segment.color = 'grey50') + 
+                        segment.color = 'grey50')# + 
     ## This is supposed to override the autoplot legend title.
     ## Only works when plotting PCA directly. Does not work for HCL and KM objects
-    labs(colour = leg_title)
+    #labs(colour = leg_title)
   return(p)
 }
 ```
@@ -212,7 +212,7 @@ The first two principal components explain the majority of the variance in the f
 
 At first glance, there are differences between players based on overall statistics. For example, LeBron James and James Harden are near each other, indicating star players may be grouped together. There are also similarities based on player position. For example, Centers/Power Forwards such as Anthony Davis and Karl-Anthony Towns are in the bottom of the chart.
 
-```{r}
+```{r, include = FALSE}
 # Labels: Players who played more than 36 min per game or less than 3 min per game
 labels_pca <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
                     as.character(nba$Player), '')
@@ -220,8 +220,7 @@ title_pca <- paste0('PCA: NBA - ', ncol(nba_feat) ,' features')
 
 # Plot first two components with positions
 plot_pca(nba_pca, data = nba, colour = 'Pos', 
-         label = labels_pca, title = title_pca, leg_title = 'Position'
-          )
+         label = labels_pca, title = title_pca)#, leg_title = 'Position'
 ```
 
 
@@ -307,7 +306,7 @@ for (i in seq_along(hcl_labs)) {
                 data = nba, colour = hcl_labs[i],
                 title = paste0('PCA: ', hcl_ks[i], ' clusters (Hclust)'),
                 label = hcl_labels,
-                leg_title = 'Clusters'
+                #leg_title = 'Clusters'
   )
 
   print(p)
@@ -434,7 +433,7 @@ nba$km_labs_four <- factor(ifelse(nba$km_labs_four == 4, 3,
 
 Compared to the hierarchical solution presented earlier, there is cleaner separation in the K-Means plot. We will see how these clusters are separated by inspecting features within each group.
 
-```{r}
+```{r, include=FALSE}
 # plot k-means clusters in PC space
 # Labels: Players who played more than 36 min per game or less than 3 min per game
 km_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
@@ -442,7 +441,9 @@ km_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3,
 
 plot_pca(km_five, data = nba, frame = TRUE, colour = 'km_labs_four',
           title = paste0('PCA: ', km_k, ' clusters (K-means)'),
-          label = km_labels, leg_title = 'Clusters')
+          label = km_labels 
+         #leg_title = 'Clusters'
+         )
 ```
 
 One explanation for the imbalanced number of players across clusters is that player skillset level is inherently imbalanced. This imbalance is reflected in the univariate plots, where most densities were positively skewed. This suggests that there a few players whose statistics significantly exceed those of the average player. This is also reflected in the average statistics by cluster shown below.
