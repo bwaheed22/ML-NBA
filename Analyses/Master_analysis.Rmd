@@ -26,6 +26,8 @@ The original source of the data can be found at these links:
 * http://www.espn.com/nba/salaries/_/year/2017
 * http://www.espn.com/nba/statistics/rpm/_/year/2017 
 
+\pagebreak
+
 # Introduction
 
 ## Research question
@@ -39,7 +41,7 @@ We all collaboratively contributed to the project in all aspects. Specifically, 
 ## Data description 
 The project is an unsupervised approach to discover underlying patterns or groupings between NBA compensation vs. overall team skill-sets. It uses K-means, hierarchical, and model-based clustering along with other techniques and tools such as principal component analysis, standardizing, scaling, and web-scraping. 
 
-The data includes NBA statistics for over 3,000 players, 60+ seasons, and over 50 features per players. The measurement scales are numerical totals and percentages for features such as: points, assists, rebounds, player attributes (height, weight, college attended, etc.). The full dataset represents a time period of 1950-2017, however we are selecting data for the 2016 - 2017 season.
+The data includes NBA statistics for over 3,000 players, 60+ seasons, and over 50 features per players. The measurement scales are numerical totals and percentages for features such as: points, assists, rebounds, player attributes (height, weight, college attended, etc.). The full dataset represents a time period of 1950-2017, however we are selecting data for the 2016-2017 season.
 
 Key feature set:   
 
@@ -82,7 +84,8 @@ For this analysis, we applied the following modeling techniques to analyse NBA p
 ## Data exploration and transformation
 The data cleaning was done in separate R scripts which can be found within the [repo/Data](https://github.com/joemarlo/ML-NBA/Data)
 Steps:
-* Filtered data to the 2016 - 2017 season
+
+* Filtered data to the 2016-2017 season
 * Assigned player to one team based on the most minutes he played for, including stats across all teams played for
 * Scraped player salaries and RPM data from ESPN website, using fuzzy matching on player names to join to the main dataset
 * Scaled/Transformed data using cube root and standardizing. For model-based clustering, various transformations such as Log + 1, square root, cube root, and Box-Cox were applied. The cube root yielded the best transformation to normalize the data. This was validated using QQ plots. We scaled the data for Hierarchical and K-Means to put all features on an equally weighted basis. For example, minutes played per game vs. blocks per game are on different ranges, so scaling these puts them on a comparable basis.
@@ -116,7 +119,7 @@ rm(list = ls())
 
 We decided to use the 14 features in our analysis (on a per game basis) because they provide a good balance of offensive (e.g Pts, Ast) and defensive stats (e.g. Reb, Blk). This is more likely to provide more balanced groupings between those who are more offensive and those who are better at defense.
 
-With these features, we will explore the distribution of each future.
+With these features, we will explore the distribution of each future by plot the distributions of key per game stats.
 
 ```{r}
 # load data
@@ -125,8 +128,8 @@ nba <- read.csv('Data/season_stats_clean.csv')
 nba$RPM[is.na(nba$RPM)] <- 0
 ```
 
-```{r echo=FALSE}
 
+```{r echo=FALSE}
 # plot distributions of key per game stats
 features_pg <- grep('_pg', names(nba), value = TRUE)
 nba_feat <- nba[ , features_pg]
@@ -136,21 +139,21 @@ nba_feat %>%
   ggplot(aes(x = value)) +
   geom_density() +
   facet_wrap(~name, scales = "free") + 
-  labs(title = 'Feature Densities (Untransformed)', 
+  labs(title = 'Feature densities (un-transformed)', 
        x = '')
 ```
 
-We calculate the variance to look at the spread of each feature.
+Variance was examined to provide a numerical estimate of the spread of each feature to determine if scaling is necessary. As an exploratory analysis, bi-variate comparisons were made between all features to determine if there are any groupings between variables. A subset of the features is presented below.
 
-```{r}
+```{r echo=FALSE}
 # calculate variance
 var_table <- round(apply(nba_feat, MARGIN = 2, FUN = var), 2)
 var_df <- data.frame(var_table)
 colnames(var_df) <- 'Variance'
-kable(var_df,
+kable(t(var_df),
       caption = 'Feature Variance', 
       booktabs = TRUE) %>% 
-    kable_styling(latex_options = c("striped"))
+  kable_styling(latex_options = c("striped", "scale_down"))
 ```
 
 
@@ -168,22 +171,28 @@ ggpairs(nba_feat_plot_pos,
 ```
 
 
-We then scaled the data because the ranges of the data can be different. A good example is minutes and blocks per game - most players will have more minutes per game than blocks per game.
+Due to the discrepancy in spread between features we decided to scale the data. Scaling each feature ensures that no single feature will dominate subsequent analyses as a result of the way the feature was measured. A good example is minutes and blocks per game - most players will have more minutes per game than blocks per game.
+
+```{r}
+# scale the data
+nba_feat_sc <- scale(nba_feat)
+```
+
 
 ## Principal component analysis
 
 Before running any clustering algorithms, we will perform principal component analysis to determine if there are any inherent groupings among players.
 
-```{r}
-nba_feat_sc <- scale(nba_feat)
+The first two principal components explain the majority of the variance in the feature set. We will plot the data in these two dimensions to better assess player similarities.
 
+```{r}
 # run PCA
 nba_pca <- prcomp(nba_feat_sc)
 summary(nba_pca)
 ```
 
 ```{r}
-# create plot PCA data function
+# create a function that will plot PCA
 plot_pca <- function(object, frame = FALSE, x = 1, y = 2, 
                      data, colour, title, label) {#, leg_title) {
   # plots data in PCA space 
@@ -208,11 +217,11 @@ plot_pca <- function(object, frame = FALSE, x = 1, y = 2,
 ```
 
 
-The first two principal components explain the majority of the variance in the feature set, we will plot the data in these two dimensions to better assess player similarities. 
-
 At first glance, there are differences between players based on overall statistics. For example, LeBron James and James Harden are near each other, indicating star players may be grouped together. There are also similarities based on player position. For example, Centers/Power Forwards such as Anthony Davis and Karl-Anthony Towns are in the bottom of the chart.
 
-```{r, include = FALSE}
+Examining the PCA in three-dimensional space shows a 'cone' shape spread of the data similar to the two-dimensional  'fan' shape.
+
+```{r echo=FALSE}
 # Labels: Players who played more than 36 min per game or less than 3 min per game
 labels_pca <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
                     as.character(nba$Player), '')
@@ -245,6 +254,9 @@ hcl_centroid <- hclust(d = nba_dist_sc, method = 'centroid')
 hcl_ward <-  hclust(d = nba_dist_sc, method = 'ward.D2')
 ```
 
+Of the three methods, the Ward dendrogram appears to be the best because there is clear separation between the clusters. It is difficult to determine a clean cutpoint to separate clusters within the single- and centroid-linkage methods. Moreover, the single- and centroid-linkage approaches produce many clusters with few or single members.
+
+Since the Ward dendrogram seems to be the best among the three, we will look at its distribution for three and four clusters. We chose these initial groupings because this provides a good start to separate and distinguish between player groups.
 
 ```{r fig.align="center", fig.height=7, fig.width=6, message=FALSE, warning=FALSE}
 par(mfrow = c(3, 1))
@@ -264,9 +276,7 @@ plot(dend_col, main = paste0('Ward (D2) Linkage: K = ', hcl_k),
 ```
 
 
-Since the Ward dendrogram seems to be the best among the three, we will look at its distribution for 3 and 4 clusters. We chose these initial groupings because this provides a good start to separate and distinguish between player groups.
-
-```{r}
+```{r echo=FALSE}
 # add cluster labels to main data
 nba$hcl_ward_labs_three <- cutree(hcl_ward, k = 3)
 nba$hcl_ward_labs_four <- cutree(hcl_ward, k = 4)
@@ -277,15 +287,20 @@ col_names <- c('Clusters', 'Count')
 colnames(hcl_df_three) <- col_names
 colnames(hcl_df_four) <- col_names
 
-kable(hcl_df_three, caption = 'Three Clusters', format = "markdown")
-kable(hcl_df_four, caption = 'Four Clusters', format = "markdown")
-
+hcl_df_three[4,] <- NA
+bind_cols(hcl_df_three, hcl_df_four) %>% 
+  select(-Clusters) %>% 
+  rename(Clusters = Clusters1,
+         'k = 3' = Count,
+         'k = 4' = Count1) %>% 
+  select(Clusters, `k = 3`, `k = 4`) %>% 
+  kable(format = 'markdown')
 ```
 
 
-Visualizing the clusters in PC space, we see clear separation in the 4-cluster solution vs the 3-cluster method based on apparent skillsets. For example, LeBron James and James Harden (star players) are in one cluster, whereas John Lucas and Danuel House (lower performers) are in the left-most cluster, opposite to the 'star player' cluster on the right. These will be explored further when we look at player statistics by cluster.
+Visualizing the clusters in PC space, we see clear separation in the four-cluster solution vs. the three-cluster method based on apparent skillsets. For example, LeBron James and James Harden (star players) are in one cluster, whereas John Lucas and Danuel House (lower performers) are in the left-most cluster, opposite to the 'star player' cluster on the right. These will be explored further when we look at player statistics by cluster.
 
-```{r}
+```{r echo=FALSE}
 # add labels to data
 nba$hcl_ward_three <- factor(cutree(hcl_ward, k = 3))
 nba$hcl_ward_four <- factor(cutree(hcl_ward, k = 4))
@@ -305,8 +320,7 @@ for (i in seq_along(hcl_labs)) {
   p <- plot_pca(nba_pca, frame = TRUE, 
                 data = nba, colour = hcl_labs[i],
                 title = paste0('PCA: ', hcl_ks[i], ' clusters (Hclust)'),
-                label = hcl_labels,
-                #leg_title = 'Clusters'
+                label = hcl_labels
   )
 
   print(p)
@@ -326,7 +340,7 @@ plot3d(pca_plot,
 
 #### Optimize number of clusters
 
-To optimize the number of clusters, we used two index methods: Calinski-Harabasz and Silhouette. These methods measure how well separated clusters are, and how homogeneous data is within each cluster. Both indices yield 2 as the optimal number.
+To optimize the number of clusters, we used two index methods: Calinski-Harabasz and Silhouette. These methods measure how well separated the clusters are, and how homogeneous data is within each cluster. Both indices yield 2 as the optimal number.
 
 Although the indices say 2 is optimal, these does not provide enough distinction or separation among players. 
 However, the Silhouette index provides 4 as a local maximum. This provides a more practical distinction among players.
@@ -335,34 +349,41 @@ Methods: Calinski-Harabasz index and Silhouette
 ```{r}
 
 # get optimal cluster sizes 
-cluster_sizes_hcl <- NbClust(data = nba_feat_sc,
+cluster_sizes_hcl_ch <- NbClust(data = nba_feat_sc,
                           # it will likely be harder to interpret clusters
                           # past this amount
                           max.nc = 6,
                           method = 'ward.D2',
                           index = 'ch')
 
-# plot C(G)
-plot(names(cluster_sizes_hcl$All.index),
-     cluster_sizes_hcl$All.index,
-     main = 'Calinski-Harabasz index: HCL',
-     type = 'l')
-```
-
-```{r}
 # get optimal cluster sizes 
-cluster_sizes_hcl <- NbClust(data = nba_feat_sc,
+cluster_sizes_hcl_s <- NbClust(data = nba_feat_sc,
                           # it will likely be harder to interpret clusters
                           # past this amount
                           max.nc = 6,
                           method = 'ward.D2',
                           index = 'silhouette')
+```
+
+```{r echo=FALSE}
+
+par(mfrow = c(1,2))
 
 # plot C(G)
-plot(names(cluster_sizes_hcl$All.index),
-     cluster_sizes_hcl$All.index,
+plot(names(cluster_sizes_hcl_ch$All.index),
+     cluster_sizes_hcl_ch$All.index,
+     main = 'Calinski-Harabasz index: HCL',
+     type = 'l',
+     xlab = "Cluster size",
+     ylab = "Index value")
+
+# plot C(G)
+plot(names(cluster_sizes_hcl_s$All.index),
+     cluster_sizes_hcl_s$All.index,
      main = 'Silhouette index: HCL',
-     type = 'l')
+     type = 'l',
+     xlab = "Cluster size",
+     ylab = "Index value")
 ```
 
 
@@ -370,47 +391,49 @@ plot(names(cluster_sizes_hcl$All.index),
 
 #### Optimize number of clusters
 
-Similar to the optimization for hierarchical, we found similar results for K-Means. We decided with the 4-cluster solution based on the Silhouette index (local maximum.)
-
-Method: Calinski-Harabasz index
+Similar to the optimization for hierarchical, we found similar results for K-Means. We decided with the 4-cluster solution based on the Silhouette index (local maximum).  
 
 ```{r}
 # get optimal cluster sizes 
-cluster_sizes_km <- NbClust(data = nba_feat_sc,
+cluster_sizes_km_ch <- NbClust(data = nba_feat_sc,
                           # it will likely be harder to interpret clusters
                           # past this amount
                           max.nc = 6,
                           method = 'kmeans',
                           index = 'ch')
 
-# plot C(G)
-plot(names(cluster_sizes_km$All.index),
-     cluster_sizes_km$All.index,
-     main = 'Calinski-Harabasz index: K-Means',
-     type = 'l')
-
-```
-
-
-```{r}
 # get optimal cluster sizes 
-cluster_sizes_km <- NbClust(data = nba_feat_sc,
+cluster_sizes_km_s <- NbClust(data = nba_feat_sc,
                           # it will likely be harder to interpret clusters
                           # past this amount
                           max.nc = 6,
                           method = 'kmeans',
                           index = 'silhouette')
+```
+
+```{r echo=FALSE}
+par(mfrow = c(1,2))
 
 # plot C(G)
-plot(names(cluster_sizes_km$All.index),
-     cluster_sizes_km$All.index,
-     main = 'Silhouette index: K-Means',
-     type = 'l')
+plot(names(cluster_sizes_km_ch$All.index),
+     cluster_sizes_km_ch$All.index,
+     main = 'Calinski-Harabasz index: KM',
+     type = 'l',
+     xlab = "Cluster size",
+     ylab = "Index value")
 
+# plot C(G)
+plot(names(cluster_sizes_km_s$All.index),
+     cluster_sizes_km_s$All.index,
+     main = 'Silhouette index: KKM',
+     type = 'l')
 ```
 
 
 #### K-means clustering with four groups
+
+Compared to the hierarchical solution presented earlier, there is cleaner separation in the K-Means plot. We will see how these clusters are separated by inspecting features within each group.
+
 ```{r}
 km_k <- 4
 km_four <- kmeans(x = nba_feat_sc,
@@ -422,7 +445,6 @@ nba$km_labs_four <- factor(km_four$cluster)
 ```
 
 
-
 ```{r echo=FALSE}
 # swap labels 3 and 4 so that label 4 are the best players
 nba$km_labs_four <- factor(ifelse(nba$km_labs_four == 4, 3, 
@@ -431,9 +453,8 @@ nba$km_labs_four <- factor(ifelse(nba$km_labs_four == 4, 3,
 
 ```
 
-Compared to the hierarchical solution presented earlier, there is cleaner separation in the K-Means plot. We will see how these clusters are separated by inspecting features within each group.
 
-```{r, include=FALSE}
+```{r, echo=FALSE}
 # plot k-means clusters in PC space
 # Labels: Players who played more than 36 min per game or less than 3 min per game
 km_labels <- ifelse(nba$MP_pg >= 36 | nba$MP_pg <= 3, 
@@ -461,7 +482,7 @@ kable(km_labs,
 ```
 
 
-```{r}
+```{r echo=FALSE}
 # averages by cluster
 nba_km_avg <- nba %>%
   select(km_labs_four, MP_pg, PTS_pg, TRB_pg,
@@ -480,15 +501,14 @@ kable(nba_km_avg,
 
 ### Model-based clustering
 
-To test alternative approaches to Hierarchical and K-Means clustering, we will perform model-based clustering.
-Prior to modeling, we will transform the data using the cube root. This normalizes the data, which is a key assumption in model-based clustering. We tested other transformations such as the square root, Box-Cox, and log + 1. Of these, The cube root yielded the best transformation for model-based clustering.
+To test alternative approaches to Hierarchical and K-Means clustering, we will perform model-based clustering. Prior to modeling, we will transform the data using the cube root. This normalizes the data, which is a key assumption in model-based clustering. We tested other transformations such as the square root, Box-Cox, and log + 1. Of these, the cube root yielded the best transformation for model-based clustering. Similar to the scaling performed for the previous clustering methods, the features should be on the same scale.
 
 ```{r}
-# transform features
+# transform features via cube-root
 nba_feat_cr <- (nba_feat) ^ (1/3)
+
 # scale transformed features
 nba_feat_cr_sc <- scale(nba_feat_cr)
-
 ```
 
 ```{r echo=FALSE}
@@ -502,23 +522,23 @@ nba_feat_cr_sc %>% as_tibble() %>%
        x = '')
 ```
 
-The model-based clustering produced a five-cluster solution based on the BIC. Compared to the previous methods, model-based clustering tended to group players by moreseo by style of play. On the other hand, K-Means and Hierarchical appear to cluster on overall skillsets across statistics. The clusters also align more with the original PCA plot by position. This type of clustering suggests emphasis on style of play, e.g. better rebounders/blockers, better passers, scorers, etc.
+The model-based clustering produced a five-cluster solution based on the BIC. Compared to the previous methods, model-based clustering tended to group players by style of play. On the other hand, K-Means and Hierarchical appear to cluster on overall skillsets across statistics. The clusters also align more with the original PCA plot by position. This type of clustering suggests emphasis on style of play, e.g. better rebounders/blockers, better passers, scorers, etc.
 
 ```{r model based clustering}
 # run model
 player_clust.mcl <- Mclust(nba_feat_cr_sc)
 summary(player_clust.mcl)
-plot(player_clust.mcl, what = "BIC")
 ```
 
 
-```{r}
+```{r echo=FALSE}
 # plot results
+plot(player_clust.mcl, what = "BIC")
 fviz_mclust(player_clust.mcl, "classification", geom = "point")
 ```
 
-```{r}
-# add cluster labels to plot
+```{r echo=FALSE}
+# add cluster labels to the main dataframe
 nba$mcl_labs <- player_clust.mcl$classification
 ```
 
@@ -544,7 +564,7 @@ xtab_km_mcl
 ```
 
 ## Final cluster selection
-K-Means (4 clusters) was the optimal solution. Comparing the HCL and KM cluster plots (per above) reveals the K-Means produces clearer separation of players based on overall skillsets. 
+K-Means (four clusters) was the optimal solution. Comparing the HCL and KM cluster plots (per above) reveals the K-Means produces clearer separation of players based on overall skillsets. 
 
 We validated this by comparing the clusters against advanced statistics. PER, VORP, and RPM are advanced statistics commonly used to assess general player performance. None of these statistics were used in the cluster modeling. 
 
@@ -558,7 +578,7 @@ nba_km_avg %>%
   facet_wrap(~name, scales = 'free') + 
   labs(title = 'Overall Player Performance by Cluster',
        subtitle = 'Average Advanced Statistics',
-       x = 'Cluster Group', 
+       x = 'Cluster', 
        y = '')
 ```
 
@@ -567,7 +587,7 @@ nba_km_avg %>%
 
 We will now look at different statistics and demographics to assess cluster membership and draw insights.
 
-```{r}
+```{r echo=FALSE}
 # Map cluster labels to KM values
 nba$km_labs_opt_names <- mapvalues(nba$km_labs_four,
                              from = c(1, 2, 3, 4),
@@ -598,8 +618,8 @@ ggplot(data = nba, aes(x = Salary, y = PER)) +
   
 ```
 
-
-```{r}
+\pagebreak
+```{r echo=FALSE}
 # Highest Paid players in Lowest Tier
 nba %>% 
   select(Player, G, MP_pg, Tm,
@@ -614,7 +634,7 @@ nba %>%
     kable_styling(latex_options = c("striped"))
 ```
 
-```{r}
+```{r echo=FALSE}
 # Lowest Paid players in highest tier
 nba %>% 
   select(Player, G, MP_pg, Tm, Salary, PER, cl_label) %>% 
@@ -627,7 +647,6 @@ nba %>%
               booktabs = TRUE) %>% 
     kable_styling(latex_options = c("striped"))
 ```
-
 
 
 The chart below indicates how much a player is overpaid or underpaid with respect to their cluster average salary. For example, Chandler Parsons was paid 22M vs. the cluster salary average (~2M), indicating he was overpaid. It is important to note that there are players who may have been injured, so their statistics may not be commensurate to their salaries.
@@ -674,8 +693,11 @@ salary.diff.df %>%
 
 ### Team compensation and performance vs. clusters
 
+Although a team can have better players on average clusters, there are many variables at play here. A team can be better on average but poor management or coaching can affect a team’s overall performance, e.g. NYK. Interestingly, GSW did not have the highest average cluster rating, because their bench is not very strong. This speaks to the strong influence that starter players can have on team performance. 
 
-```{r}
+Another interesting note is that teams can play well even if they do not have many all-stars or a strong overall team, e.g BOS. Paying more does not necessarily translate into wining more games. For example, the Utah Jazz (UTA) have the same winning percentage as the Los Angeles Clippers (LAC) despite a substantial difference in player payroll spending. This could be driven factors outside of the dataset such as good coaching and team chemistry. It is important to note that items such as injuries could greatly influence win %, even if players have high ratings. Although there is a correlation between overall team salary and win %, it is interesting that average player rating does not necessarily align with overall win %.
+
+```{r echo=FALSE}
 # convert labels to numeric
 nba$cl_lab_numeric <- as.numeric(nba[ , cl_label])
 nba_team <- data.frame(nba 
@@ -693,8 +715,6 @@ arrange(nba_team, desc(avg_clust)) %>%
         booktabs = TRUE) %>% 
     kable_styling(latex_options = c("striped"))
 ```
-
-Although a team can have better players on average clusters, there are many variables at play here. A team can be better on average but poor management or coaching can affect a team's overall performance, e.g. NYK. Interestingly, GSW did not have the highest average cluster rating, because their bench is not very strong. This speaks to the strong influence that starter players can have on team performance. Another interesting note is that teams can play well even if they do not have many all-stars or a strong overall team, e.g BOS. This could be driven by great coaching and team chemistry. It is important to note that items such as injuries could greatly influence win %, even if players have high ratings. 
 
 Although there is a correlation between overall team salary and win %, it is interesting that average player rating does not necessarily align with overall win %.
 
@@ -717,7 +737,12 @@ ggplot(nba_team,
 ```
 
 
-```{r}
+## Final thoughts
+
+The K-means four cluster solution was able to accurately group players by general skill set and productivity. Tables 7-9 show cluster assignment of players on 3 selected teams and provide an illustrated example of the accuracy of the clustering . Across all three of the selected teams, cluster assignment accurately reflects the contributions of each player. This is also reflected empirically when statistics such as VORP RPM and PER are explored at the cluster level (refer to tables 5 & 6). 
+
+
+```{r echo=FALSE}
 # Inspect some teams
 teams_sample <- c('NYK', 'GSW', 'BOS')
 
@@ -730,14 +755,33 @@ for (i in seq_along(teams_sample)) {
 }
 
 # change index to see different teams
-team_index <- 2
-team_sample <- data.frame(teams_sample_list[team_index])
-colnames(team_sample) <- c('Player', 'PER', 'Cluster')
-teams_sample_list[[2]] %>%
-  kable(caption = paste0(teams_sample[team_index], ': Players'),
+rslts <- c()
+for (i in seq_along(teams_sample_list)) {
+  team_sample <- data.frame(teams_sample_list[i])
+  colnames(team_sample) <- c('Player', 'PER', 'Cluster')
+  rslts[[i]] <- teams_sample_list[[i]]
+}
+
+rslts[[1]] %>% 
+  kable(caption = paste0(teams_sample[1], ': Players'),
         booktabs = TRUE) %>% 
+    kable_styling(latex_options = c("striped"))
+
+rslts[[2]] %>%
+  kable(caption = paste0(teams_sample[1], ': Players'),
+        booktabs = TRUE) %>% 
+    kable_styling(latex_options = c("striped"))
+
+rslts[[3]] %>%
+  kable(caption = paste0(teams_sample[1], ': Players'),
+          booktabs = TRUE) %>%
   kable_styling(latex_options = c("striped"))
-
 ```
+  
 
-## Final thoughts
+Our analysis provides interesting insight into the similarities and differences between NBA players in a given season. In general, teams look to have a diverse roster of players with varying skillsets and styles of play. As shown in the PER v. Salary plot, some players are high producers and are effective scorers, but are not highly compensated. This posits that some team managers are prudent at selecting good talent early, when they are under low salary contracts, and developing their players into future stars. 
+
+On the other hand, in the Win % vs. Salary plot, it was clear that high team spending on higher-caliber players does not necessarily translate into higher winning percentages. For example, a team like Boston consisted of mostly average players and spent a relatively lower amount of money than most teams. However, their winning percentage was approximately 65%. 
+
+Our unsupervised clustering methodology was effective in grouping and assessing NBA players based on similar characteristics, skill sets, and play styles. This information is useful for team managers and coaches to build cost-effective, winning franchises.
+
