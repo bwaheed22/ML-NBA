@@ -1,7 +1,7 @@
 ---
 title: 'ML 2011 Final Project'
 author: "Joe Marlo, Andrew Pagtakhan, George Perrett, Bilal Waheed"
-date: "In honor of Kobe Bryant"
+date: "In Loving Memory of Kobe Bryant: 1978 - 2020"
 output:
   pdf_document:
     toc: yes
@@ -784,4 +784,11 @@ Our analysis provides interesting insight into the similarities and differences 
 On the other hand, in the Win % vs. Salary plot, it was clear that high team spending on higher-caliber players does not necessarily translate into higher winning percentages. For example, a team like Boston consisted of mostly average players and spent a relatively lower amount of money than most teams. However, their winning percentage was approximately 65%. 
 
 Our unsupervised clustering methodology was effective in grouping and assessing NBA players based on similar characteristics, skill sets, and play styles. This information is useful for team managers and coaches to build cost-effective, winning franchises.
+
+\pagebreak
+
+```{r}
+sessionInfo()
+```
+
 
