@@ -8,3 +8,5 @@ To run the analyses, first ensure `seasons_stats_clean.csv` is within`/Data`. If
 `/Analyses` contains the clustering analyses  
 `/Data` contains the cleaned data, cleaning scripts, and scraping scripts  
 `/Inputs` contains the raw data. Original data can be found on [kaggle.com](https://www.kaggle.com/drgilermo/nba-players-stats)
+
+See blog post: [marlo.works/posts/nba/](https://joemarlo.github.io/posts/nba)
